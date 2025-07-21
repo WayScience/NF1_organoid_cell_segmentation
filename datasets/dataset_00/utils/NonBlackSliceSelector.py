@@ -44,31 +44,28 @@ class NonBlackSliceSelector:
         self, img: np.ndarray, img_path: pathlib.Path
     ) -> dict[pathlib.Path, list[dict[str, Any]]]:
         """
-        Select all nonblack z-slice samples efficiently by minimizing computation of slice averages.
+        Select all non-black z-slice samples efficiently by minimizing computation of slice averages.
         """
-        black_zslices = []
+        black_zslices = set()
         zslice_groups = defaultdict(list)
 
-        for z_index in range(self.neighbors_per_side, img.shape[0], self.stride):
-
-            if z_index + self.neighbors_per_side > img.shape[0] - 1:
-                break
+        for z_index in range(
+            self.neighbors_per_side, img.shape[0] - self.neighbors_per_side, self.stride
+        ):
 
             select_slice = True
+            selected_zslices = []
 
             for z_index_neigh in range(
-                z_index - self.neighbors_per_side, z_index + self.neighbors_per_side, 1
+                z_index - self.neighbors_per_side,
+                z_index + self.neighbors_per_side + 1,
             ):
-
-                selected_zslices = []
-
                 if z_index_neigh in black_zslices or self.is_black(img[z_index_neigh]):
                     select_slice = False
-                    black_zslices.append(z_index_neigh)
+                    black_zslices.add(z_index_neigh)
                     break
 
-                if len(selected_zslices) < 2:
-                    selected_zslices.append(z_index_neigh)
+                selected_zslices.append(z_index_neigh)
 
             if not select_slice:
                 continue
