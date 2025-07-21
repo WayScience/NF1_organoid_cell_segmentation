@@ -26,7 +26,7 @@ class DownConv(nn.Module):
 
         if normobj in [nn.BatchNorm2d, nn.InstanceNorm2d]:
             self.norm = normobj(out_channels)
-        elif normobj == nn.GroupNorm:
+        elif normobj is nn.GroupNorm:
             self.norm = normobj(num_groups=1, num_channels=out_channels)
         else:
             raise ValueError("Unsupported normalization layer.")
@@ -54,7 +54,7 @@ class UpConv(nn.Module):
         else:
             self.up = nn.ConvTranspose2d(**kwargs)
 
-    def pad_match(self, encmap, decmap):
+    def pad_match(self, encmap: torch.Tensor, decmap: torch.Tensor) -> torch.Tensor:
         encmap = self.up(encmap)
         diffY = decmap.size()[2] - encmap.size()[2]
         diffX = decmap.size()[3] - encmap.size()[3]
@@ -63,7 +63,7 @@ class UpConv(nn.Module):
             encmap, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2]
         )
 
-    def forward(self, encmap, decmap):
+    def forward(self, encmap: torch.Tensor, decmap: torch.Tensor) -> torch.Tensor:
         encmap = self.pad_match(encmap, decmap)
         encmap = torch.cat([decmap, encmap], dim=1)
         return self.up(encmap)
@@ -87,5 +87,5 @@ class OutConv(nn.Module):
             padding_mode=padding_mode,
         )
 
-    def forward(self, convmap):
+    def forward(self, convmap: torch.Tensor) -> torch.Tensor:
         return torch.sigmoid(self.conv(convmap))
