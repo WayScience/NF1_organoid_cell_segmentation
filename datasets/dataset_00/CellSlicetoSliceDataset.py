@@ -22,8 +22,6 @@ class CellSlicetoSliceDataset(Dataset):
         patient_folders: list[str],
         input_transform: Optional[ImageOnlyTransform] = None,
         target_transform: Optional[ImageOnlyTransform] = None,
-        reverse_input_transform: Optional[ImageOnlyTransform] = None,
-        reverse_target_transform: Optional[ImageOnlyTransform] = None,
         **zslice_selector_configs,
     ):
         self.root_data_path = root_data_path
@@ -33,9 +31,15 @@ class CellSlicetoSliceDataset(Dataset):
         self.__target_transform = target_transform
 
         self.data_paths = self.store_fov_patients()
-        self.data_slices = ZSliceSelector(
-            [path["input"] for path in self.data_paths], **zslice_selector_configs
-        )
+        self.data_slices = ZSliceSelector(self.data_paths, **zslice_selector_configs)
+
+        self.input_max_pixel_value = np.iinfo(
+            tifffile.imread(self.data_slices[0]["input_path"]).astype(np.float32).dtype
+        ).max
+
+        self.target_max_pixel_value = np.iinfo(
+            tifffile.imread(self.data_slices[0]["target_path"]).astype(np.float32).dtype
+        ).max
 
     def store_fov_patients(self):
         """
@@ -64,9 +68,6 @@ class CellSlicetoSliceDataset(Dataset):
 
         return image_mask_pairs
 
-    def __len__(self):
-        return len(self.__image_path)
-
     @property
     def input_transform(self):
         return self.__input_transform
@@ -88,14 +89,21 @@ class CellSlicetoSliceDataset(Dataset):
     def __getitem__(self, _idx: int):
         """Returns input and target data pairs."""
 
-        self.input_path = self.data_paths[_idx]["input"]
-        self.target_path = self.data_paths[_idx]["target"]
-        self.well, self.fov = self.data_paths[_idx]["input"].parent.split("-")
+        self.input_path = self.data_slices[_idx]["input_path"]
+        self.target_path = self.data_slices[_idx]["target_path"]
+        self.well, self.fov = self.data_slices[_idx]["input_path"].parent.split("-")
 
-        self.patient = self.data_paths[_idx].parents[2]
+        self.patient = self.data_slices[_idx].parents[2]
 
-        input_image = np.array(Image.open(self.input_path).convert("I;16"))
-        target_image = np.array(Image.open(self.target_path).convert("L"))
+        input_image = (
+            tifffile.imread(self.input_path).astype(np.float32)
+            / self.input_max_pixel_value
+        )
+
+        target_image = (
+            tifffile.imread(self.target_path).astype(np.float32)
+            / self.target_max_pixel_value
+        )
 
         if self.__input_transform:
             input_image = self.__input_transform(image=input_image)["image"]
