@@ -3,15 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class DownConv(nn.Module):
+class Conv(nn.Module):
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
         kernel_size: int,
+        stride: int,
         padding: int,
         padding_mode: str = "zeros",
-        normobj: nn.Module = nn.BatchNorm2d,
+        normalization: nn.Module = nn.BatchNorm2d,
+        pooling: nn.Module = None,
     ):
         super().__init__()
 
@@ -19,25 +21,37 @@ class DownConv(nn.Module):
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
+            stride=stride,
             padding=padding,
             padding_mode=padding_mode,
             bias=False,
         )
 
-        if normobj in [nn.BatchNorm2d, nn.InstanceNorm2d]:
-            self.norm = normobj(out_channels)
-        elif normobj is nn.GroupNorm:
-            self.norm = normobj(num_groups=1, num_channels=out_channels)
-        else:
-            raise ValueError("Unsupported normalization layer.")
-
+        self.norm = normalization
         self.relu = nn.ReLU(inplace=True)
+        self.pooling = pooling
 
     def forward(self, imgmap: torch.Tensor) -> torch.Tensor:
         x = self.conv(imgmap)
         x = self.norm(x)
         x = self.relu(x)
+        if self.pooling:
+            x = self.pooling(x)
         return x
+
+
+class DoubleConv:
+    def __init__(self, ascending: bool, **kwargs):
+        self.xl = Conv(**kwargs)
+        kwargs["in_channels"] = kwargs["out_channels"]
+
+        if not ascending:
+            kwargs["stride"] *= 2
+
+        self.xr = Conv(**kwargs)
+
+    def forward(self):
+        return self.xr(self.xl)
 
 
 class UpConv(nn.Module):
