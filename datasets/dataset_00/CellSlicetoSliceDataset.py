@@ -33,13 +33,32 @@ class CellSlicetoSliceDataset(Dataset):
         self.data_paths = self.store_fov_patients()
         self.data_slices = ZSliceSelector(self.data_paths, **zslice_selector_configs)
 
-        self.input_max_pixel_value = np.iinfo(
-            tifffile.imread(self.data_slices[0]["input_path"]).astype(np.float32).dtype
-        ).max
+        input_example = tifffile.imread(self.data_slices[0]["input_path"]).astype(
+            np.float32
+        )
+        target_example = tifffile.imread(self.data_slices[0]["target_path"]).astype(
+            np.float32
+        )
 
-        self.target_max_pixel_value = np.iinfo(
-            tifffile.imread(self.data_slices[0]["target_path"]).astype(np.float32).dtype
-        ).max
+        self.input_ndim = input_example.ndim
+        self.target_ndim = target_example.ndim
+
+        self.input_max_pixel_value = np.iinfo(input_example.dtype).max
+        self.target_max_pixel_value = np.iinfo(target_example.dtype).max
+
+    def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
+        """
+        Formats an image base on the number of image dimensions.
+        """
+
+        if img_dims == 2:
+            return torch.from_numpy(img).unsqueeze(0).to(torch.float32)
+        elif img_dims == 3:
+            return torch.from_numpy(img).to(torch.float32)
+        else:
+            raise ValueError(
+                f"The number of dimensions in your image should be 2 or 3. It is currently {img_dims}"
+            )
 
     def store_fov_patients(self):
         """
@@ -109,11 +128,12 @@ class CellSlicetoSliceDataset(Dataset):
 
         if self.__input_transform:
             input_image = self.__input_transform(image=input_image)["image"]
-            input_image = torch.from_numpy(input_image).unsqueeze(0).float()
 
         if self.__target_transform:
             target_image = self.__target_transform(image=target_image)["image"]
-            target_image = torch.from_numpy(target_image).unsqueeze(0).float()
+
+        input_image = self.format_img(input_image, self.input_ndim)
+        target_image = self.format_img(target_image, self.target_ndim)
 
         return {
             "input": input_image,
