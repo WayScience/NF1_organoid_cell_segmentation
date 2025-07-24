@@ -84,6 +84,7 @@ class CellSlicetoSliceDataset(Dataset):
             "Metadata_Well": self.well,
             "Metadata_Fov": self.fov,
             "Metadata_Patient": self.patient,
+            "Metadata_ID": self.id,
         }
 
     def __getitem__(self, _idx: int):
@@ -94,6 +95,7 @@ class CellSlicetoSliceDataset(Dataset):
         self.well, self.fov = self.data_slices[_idx]["input_path"].parent.split("-")
 
         self.patient = self.data_slices[_idx].parents[2]
+        self.id = f"{self.patient}{self.well}{self.fov}"
 
         input_image = (
             tifffile.imread(self.input_path).astype(np.float32)
