@@ -1,5 +1,5 @@
 import pathlib
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 import numpy as np
 import tifffile
@@ -22,6 +22,7 @@ class CellSlicetoSliceDataset(Dataset):
         patient_folders: list[str],
         input_transform: Optional[ImageOnlyTransform] = None,
         target_transform: Optional[ImageOnlyTransform] = None,
+        device: Union[torch.device, str] = "cuda",
         **zslice_selector_configs,
     ):
         self.root_data_path = root_data_path
@@ -30,6 +31,7 @@ class CellSlicetoSliceDataset(Dataset):
         self.__input_transform = input_transform
         self.__target_transform = target_transform
 
+        self.device = device
         self.data_paths = self.store_fov_patients()
         self.data_slices = ZSliceSelector(self.data_paths, **zslice_selector_configs)
 
@@ -52,13 +54,17 @@ class CellSlicetoSliceDataset(Dataset):
         """
 
         if img_dims == 2:
-            return torch.from_numpy(img).unsqueeze(0).to(torch.float32)
+            img = torch.from_numpy(img).unsqueeze(0)
+
         elif img_dims == 3:
-            return torch.from_numpy(img).to(torch.float32)
+            img = torch.from_numpy(img)
+
         else:
             raise ValueError(
                 f"The number of dimensions in your image should be 2 or 3. It is currently {img_dims}"
             )
+
+        return img.to(dtype=torch.float32, device=self.device)
 
     def store_fov_patients(self):
         """
