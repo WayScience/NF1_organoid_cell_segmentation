@@ -118,19 +118,26 @@ class CellSlicetoSliceDataset(Dataset):
         self.input_path = self.data_slices[_idx]["input_path"]
         self.target_path = self.data_slices[_idx]["target_path"]
         self.well, self.fov = self.data_slices[_idx]["input_path"].parent.split("-")
+        self.input_slices = self.data_slices["input_slices"]
+        self.target_slices = self.data_slices["target_slices"]
 
         self.patient = self.data_slices[_idx].parents[2]
-        self.id = f"{self.patient}{self.well}{self.fov}"
+        input_slice_str = "".join(map(str, sorted(self.input_slices, reverse=False)))
+        target_slice_str = "".join(map(str, sorted(self.target_slices, reverse=False)))
+
+        self.id = (
+            f"{self.patient}{self.well}{self.fov}{input_slice_str}{target_slice_str}"
+        )
 
         input_image = (
             tifffile.imread(self.input_path).astype(np.float32)
             / self.input_max_pixel_value
-        )
+        )[self.input_slices]
 
         target_image = (
             tifffile.imread(self.target_path).astype(np.float32)
             / self.target_max_pixel_value
-        )
+        )[self.target_slices]
 
         if self.__input_transform:
             input_image = self.__input_transform(image=input_image)["image"]
