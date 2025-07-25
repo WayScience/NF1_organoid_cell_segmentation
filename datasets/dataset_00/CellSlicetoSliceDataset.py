@@ -47,6 +47,7 @@ class CellSlicetoSliceDataset(Dataset):
 
         self.input_max_pixel_value = np.iinfo(input_example.dtype).max
         self.target_max_pixel_value = np.iinfo(target_example.dtype).max
+        self.split_data = False
 
     def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
         """
@@ -109,6 +110,8 @@ class CellSlicetoSliceDataset(Dataset):
             "Metadata_Well": self.well,
             "Metadata_Fov": self.fov,
             "Metadata_Patient": self.patient,
+            "Metadata_Input_Slices": list(map(str, self.input_slices)),
+            "Metadata_Target_Slices": list(map(str, self.target_slices)),
             "Metadata_ID": self.id,
         }
 
@@ -117,7 +120,7 @@ class CellSlicetoSliceDataset(Dataset):
 
         self.input_path = self.data_slices[_idx]["input_path"]
         self.target_path = self.data_slices[_idx]["target_path"]
-        self.well, self.fov = self.data_slices[_idx]["input_path"].parent.split("-")
+        self.well, self.fov = self.input_path.parent.split("-")
         self.input_slices = sorted(self.data_slices["input_slices"], reverse=False)
         self.target_slices = sorted(self.data_slices["target_slices"], reverse=False)
 
@@ -128,6 +131,14 @@ class CellSlicetoSliceDataset(Dataset):
         self.id = (
             f"{self.patient}{self.well}{self.fov}{input_slice_str}{target_slice_str}"
         )
+
+        # Ensure only the data for splitting is returned rather than loading each image
+        if self.split_data:
+            return {
+                "metadata": self.metadata,
+                "input_path": self.input_path,
+                "target_path": self.target_path,
+            }
 
         input_image = (
             tifffile.imread(self.input_path).astype(np.float32)
