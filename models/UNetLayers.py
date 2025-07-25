@@ -11,8 +11,8 @@ class Conv(nn.Module):
         kernel_size: int,
         stride: int,
         padding: int,
+        normalization: nn.Module,
         padding_mode: str = "zeros",
-        normalization: nn.Module = nn.BatchNorm2d,
         pooling: nn.Module = None,
     ):
         super().__init__()
@@ -41,9 +41,13 @@ class Conv(nn.Module):
 
 
 class DoubleConv:
-    def __init__(self, ascending: bool, **kwargs):
+    def __init__(self, normalization0: nn.Module, normalization1: nn.Module, ascending: bool, **kwargs):
+        kwargs["normalization"] = normalization0
+
         self.xl = Conv(**kwargs)
+
         kwargs["in_channels"] = kwargs["out_channels"]
+        kwargs["normalization"] = normalization1
 
         if not ascending:
             kwargs["stride"] *= 2
