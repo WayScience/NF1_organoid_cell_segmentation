@@ -118,12 +118,12 @@ class CellSlicetoSliceDataset(Dataset):
         self.input_path = self.data_slices[_idx]["input_path"]
         self.target_path = self.data_slices[_idx]["target_path"]
         self.well, self.fov = self.data_slices[_idx]["input_path"].parent.split("-")
-        self.input_slices = self.data_slices["input_slices"]
-        self.target_slices = self.data_slices["target_slices"]
+        self.input_slices = sorted(self.data_slices["input_slices"], reverse=False)
+        self.target_slices = sorted(self.data_slices["target_slices"], reverse=False)
 
         self.patient = self.data_slices[_idx].parents[2]
-        input_slice_str = "".join(map(str, sorted(self.input_slices, reverse=False)))
-        target_slice_str = "".join(map(str, sorted(self.target_slices, reverse=False)))
+        input_slice_str = "".join(map(str, self.input_slices))
+        target_slice_str = "".join(map(str, self.target_slices))
 
         self.id = (
             f"{self.patient}{self.well}{self.fov}{input_slice_str}{target_slice_str}"
