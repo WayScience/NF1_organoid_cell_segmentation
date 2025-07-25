@@ -74,6 +74,7 @@ class UNetTrainer:
             for batch, batch_data in enumerate(self.train_dataloader):
                 train_data["callback_hook"] = "on_batch_start"
                 train_data["batch"] = batch
+                train_data["batch_data"] = batch_data
                 self.callbacks(**train_data)
                 #print(f"Starting batch {batch_idx}")
 
@@ -95,10 +96,6 @@ class UNetTrainer:
 
             train_data["callback_hook"] = "on_epoch_end"
             self.callbacks(**train_data)
-
-            if train_data["model_loss"] < self.best_loss:
-                best_model_loss = train_data["model_loss"]
-
             """
 
                 training_losses[self._generator_loss.metric_name] += generator_loss
