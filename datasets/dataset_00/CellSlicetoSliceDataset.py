@@ -41,6 +41,7 @@ class CellSlicetoSliceDataset(Dataset):
         target_example = tifffile.imread(self.data_slices[0]["target_path"]).astype(
             np.float32
         )
+        target_example = (target_example != 0).astype(np.float32)
 
         self.input_ndim = input_example.ndim
         self.target_ndim = target_example.ndim
@@ -147,8 +148,9 @@ class CellSlicetoSliceDataset(Dataset):
 
         target_image = (
             tifffile.imread(self.target_path).astype(np.float32)
-            / self.target_max_pixel_value
         )[self.target_slices]
+
+        target_image = (target_image != 0).astype(np.float32)
 
         if self.__input_transform:
             input_image = self.__input_transform(image=input_image)["image"]
