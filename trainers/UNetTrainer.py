@@ -78,10 +78,10 @@ class UNetTrainer:
                 self.callbacks(**train_data)
                 #print(f"Starting batch {batch_idx}")
 
-                train_data["generated_targets"] = self.model(batch_data["input"])
+                train_data["generated_predictions"] = self.model(batch_data["input"])
                 train_data["model_loss"] = self.model_loss(
                     _targets=targets,
-                    _generated_targets=generated_targets,
+                    _generated_predictions=generated_predictions,
                 )
 
                 # Update the Model
