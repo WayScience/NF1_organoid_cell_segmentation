@@ -41,7 +41,13 @@ class Conv(nn.Module):
 
 
 class DoubleConv:
-    def __init__(self, normalization0: nn.Module, normalization1: nn.Module, ascending: bool, **kwargs):
+    def __init__(
+        self,
+        normalization0: nn.Module,
+        normalization1: nn.Module,
+        ascending: bool,
+        **kwargs,
+    ):
         kwargs["normalization"] = normalization0
 
         self.xl = Conv(**kwargs)
@@ -106,4 +112,4 @@ class OutConv(nn.Module):
         )
 
     def forward(self, convmap: torch.Tensor) -> torch.Tensor:
-        return torch.sigmoid(self.conv(convmap))
+        return self.conv(convmap)
