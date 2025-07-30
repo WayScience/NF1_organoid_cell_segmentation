@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
+from utils.SampleImages import SampleImages
 
 
 class Callbacks:
@@ -13,12 +14,12 @@ class Callbacks:
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
-        num_samples_to_plot: Optional[int] = None,
+        sample_images: Optional[SampleImages] = None,
     ):
         self.metrics = metrics
         self.loss = loss
         self.early_stopping_counter_threshold = early_stopping_counter_threshold
-        self.num_samples_to_plot = num_samples_to_plot
+        self.sample_images = sample_images
         self.best_loss_value = float("inf")
         self.early_stopping_counter = 0
         self.loss_value = None
@@ -117,6 +118,9 @@ class Callbacks:
             )
 
         self._assess_early_stopping(epoch=epoch)
+
+        if self.sample_images is not None:
+            image_samples = self.sample_images()
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass
