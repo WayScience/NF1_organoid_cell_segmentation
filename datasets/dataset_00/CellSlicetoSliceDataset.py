@@ -129,9 +129,7 @@ class CellSlicetoSliceDataset(Dataset):
         input_slice_str = "".join(map(str, self.input_slices))
         target_slice_str = "".join(map(str, self.target_slices))
 
-        self.id = (
-            f"{self.patient}{self.well}{self.fov}{input_slice_str}{target_slice_str}"
-        )
+        self.id = f"{self.patient}{self.well}{self.fov}"
 
         # Ensure only the data for splitting is returned rather than loading each image
         if self.split_data:
@@ -146,9 +144,9 @@ class CellSlicetoSliceDataset(Dataset):
             / self.input_max_pixel_value
         )[self.input_slices]
 
-        target_image = (
-            tifffile.imread(self.target_path).astype(np.float32)
-        )[self.target_slices]
+        target_image = (tifffile.imread(self.target_path).astype(np.float32))[
+            self.target_slices
+        ]
 
         target_image = (target_image != 0).astype(np.float32)
 
