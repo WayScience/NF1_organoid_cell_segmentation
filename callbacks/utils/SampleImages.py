@@ -16,9 +16,9 @@ class SampleImages:
 
         images_metadata = {}
 
-        for batch, batch_data in enumerate(self.dataloader):
+        for batch_data in self.dataloader:
             for image_metadata in batch_data["metadata"]:
-                image_metadata_copy = images_metadata.copy()
+                image_metadata_copy = image_metadata.copy()
                 image_num_id = (
                     Fingerprint64(image_metadata_copy["Metadata_ID"]) % self.divisor
                 )
