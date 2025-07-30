@@ -58,7 +58,6 @@ class UNetTrainer:
         return self.best_model
 
     def train(self):
-        #train_data = {"val_dataloader": self.val_dataloader}
         train_data["continue_training"] = True
 
         for epoch in range(self.epochs):
@@ -67,7 +66,6 @@ class UNetTrainer:
 
             train_data["callback_hook"] = "on_epoch_start"
             self.callbacks(**train_data)
-            #print(f"Starting epoch {epoch}")
 
             self.model.train()
 
@@ -76,7 +74,6 @@ class UNetTrainer:
                 train_data["batch"] = batch
                 train_data["batch_data"] = batch_data
                 self.callbacks(**train_data)
-                #print(f"Starting batch {batch_idx}")
 
                 train_data["generated_predictions"] = self.model(batch_data["input"])
                 train_data["model_loss"] = self.model_loss(
@@ -95,7 +92,10 @@ class UNetTrainer:
                 self.callbacks(**train_data)
 
             train_data["callback_hook"] = "on_epoch_end"
-            self.callbacks(**train_data)
+            train_data["continue_training"] = self.callbacks(val_dataloader=self.val_dataloader, **train_data)
+
+            if not train_data["continue_training"]:
+                break
             """
 
                 training_losses[self._generator_loss.metric_name] += generator_loss

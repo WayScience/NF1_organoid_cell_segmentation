@@ -12,13 +12,16 @@ class Callbacks:
         self,
         metrics: List,
         loss: Module,
+        early_stopping_counter_threshold: int,
         num_samples_to_plot: Optional[int] = None,
     ):
         self.metrics = metrics
         self.loss = loss
+        self.early_stopping_counter_threshold = early_stopping_counter_threshold
         self.num_samples_to_plot = num_samples_to_plot
         self.best_loss_value = float("inf")
         self.early_stopping_counter = 0
+        self.loss_value = None
 
     def _log_epoch_metrics(
         self,
@@ -56,6 +59,12 @@ class Callbacks:
                 )
 
         for name, loss_value in self.loss.metric_data().items():
+            if (
+                "loss" in name
+                and "component" not in name
+                and self.loss_value is not None
+            ):
+                self.loss_value = loss_value
             mlflow.log_metric(f"{data_split}_{name}", loss_value, step=time_step)
 
         for metric in self.metrics:
@@ -89,6 +98,18 @@ class Callbacks:
                 time_step=epoch,
                 **kwargs,
             )
+
+        if self.best_loss_value > self.loss_value:
+            self.best_loss_value = self.loss_value
+            self.early_stopping_counter = 0
+
+        else:
+            self.early_stopping_counter += 1
+
+            if self.early_stopping_counter >= self.early_stopping_counter_threshold:
+                return False
+
+        return True
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass
