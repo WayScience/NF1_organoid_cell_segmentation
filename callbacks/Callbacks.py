@@ -23,19 +23,35 @@ class Callbacks:
         self.early_stopping_counter = 0
         self.loss_value = None
 
+    def _log_metrics(self, time_step: int, data_split: str):
+        self.loss_value = None
+        for name, loss_value in self.loss.metric_data().items():
+            if "loss" in name and "component" not in name:
+                self.loss_value = loss_value
+
+            mlflow.log_metric(f"{data_split}_{name}", loss_value, step=time_step)
+
+        if self.loss_value is None:
+            raise ValueError(
+                "The loss name should contain the string 'loss' and shouldn't contain the string 'component'"
+            )
+
+        for metric in self.metrics:
+            for name, metric_value in metric.metric_data().items():
+                mlflow.log_metric(f"{data_split}_{name}", metric_value, step=time_step)
+
     def _log_epoch_metrics(
         self,
         time_step: int,
         model: Module,
         dataloader: DataLoader,
         data_split: str,
-        generated_predictions: Tensor,
-        targets: Tensor,
         **kwargs,
-    ) -> tuple[Tensor, Tensor]:
+    ) -> None:
 
         model.eval()
 
+        # Compute Metrics
         with torch.no_grad():
             for inputs, targets in dataloader:
                 generated_predictions = model(inputs)
@@ -58,18 +74,19 @@ class Callbacks:
                     **kwargs,
                 )
 
-        for name, loss_value in self.loss.metric_data().items():
-            if (
-                "loss" in name
-                and "component" not in name
-                and self.loss_value is not None
-            ):
-                self.loss_value = loss_value
-            mlflow.log_metric(f"{data_split}_{name}", loss_value, step=time_step)
+        self._log_metrics(time_step=time_step, data_split=data_split)
 
-        for metric in self.metrics:
-            for name, metric_value in metric.metric_data().items():
-                mlflow.log_metric(f"{data_split}_{name}", metric_value, step=time_step)
+    def _assess_early_stopping(self, epoch: int, **kwargs) -> bool:
+        if self.best_loss_value > self.loss_value:
+            self.best_loss_value = self.loss_value
+            self.early_stopping_counter = 0
+        else:
+            self.early_stopping_counter += 1
+            if self.early_stopping_counter >= self.early_stopping_counter_threshold:
+                print(f"Early stopping triggered at epoch {epoch}")
+                mlflow.log_param("early_stopping_epoch", epoch)
+                return False
+        return True
 
     def _on_epoch_start(self, epoch: int, **kwargs) -> None:
         print(f"Starting epoch {epoch}")
@@ -99,17 +116,7 @@ class Callbacks:
                 **kwargs,
             )
 
-        if self.best_loss_value > self.loss_value:
-            self.best_loss_value = self.loss_value
-            self.early_stopping_counter = 0
-
-        else:
-            self.early_stopping_counter += 1
-
-            if self.early_stopping_counter >= self.early_stopping_counter_threshold:
-                return False
-
-        return True
+        self._assess_early_stopping(epoch=epoch)
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass
