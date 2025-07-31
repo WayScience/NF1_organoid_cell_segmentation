@@ -1,3 +1,5 @@
+import copy
+
 from farmhash import Fingerprint64
 from torch.utils.data import DataLoader
 
@@ -8,8 +10,8 @@ class SampleImages:
         self, lower_threshold: int, upper_threshold: int, dataloader: DataLoader
     ):
         self.divisor = 10**6
-        self.lower_threshold = lower_threshold % self.divisor
-        self.upper_threshold = upper_threshold % self.divisor
+        self.lower_threshold = int(lower_threshold * self.divisor)
+        self.upper_threshold = int(upper_threshold * self.divisor)
         self.dataloader = dataloader
 
     def __call__(self):
@@ -30,7 +32,20 @@ class SampleImages:
                     metadata_id = image_metadata_copy.pop("Metadata_ID", None)
 
                     if metadata_id is not None:
-                        images_metadata[metadata_id] = image_metadata_copy
+                        if metadata_id not in images_metadata:
+                            images_metadata[metadata_id] = copy.deepcopy(
+                                image_metadata_copy
+                            )
+                            images_metadata[metadata_id]["Metadata_Input_Slices"] = []
+                            images_metadata[metadata_id]["Metadata_Target_Slices"] = []
+
+                        images_metadata[metadata_id]["Metadata_Input_Slices"].append(
+                            image_metadata_copy["Metadata_Input_Slices"]
+                        )
+
+                        images_metadata[metadata_id]["Metadata_Target_Slices"].append(
+                            image_metadata_copy["Metadata_Target_Slices"]
+                        )
 
         if not images_metadata:
             raise ValueError(

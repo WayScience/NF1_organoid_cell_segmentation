@@ -111,8 +111,8 @@ class CellSlicetoSliceDataset(Dataset):
             "Metadata_Well": self.well,
             "Metadata_Fov": self.fov,
             "Metadata_Patient": self.patient,
-            "Metadata_Input_Slices": set(self.input_slices),
-            "Metadata_Target_Slices": set(self.target_slices),
+            "Metadata_Input_Slices": self.input_slices,
+            "Metadata_Target_Slices": self.target_slices,
             "Metadata_ID": self.id,
         }
 
