@@ -1,0 +1,71 @@
+from typing import Optional
+
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+
+class BCE(nn.Module):
+    """
+    Computes the Binary Cross Entropy from Logits.
+    """
+
+    def __init__(
+        self, is_loss: bool = False, reduction: str = "mean", device: str = "cuda"
+    ):
+        super().__init__()
+        self.is_loss = is_loss
+        self.reduction = reduction
+        self.data_split_logging: Optional[str] = None
+        self.device = device
+
+        if self.is_loss:
+            self.bce_fn = nn.BCEWithLogitsLoss(reduction=reduction)
+
+        self.reset()
+
+    def reset(self):
+        self.total_loss = torch.tensor(0.0)
+        self.total_elements = 0
+
+    def forward(
+        self,
+        generated_predictions: torch.Tensor,
+        targets: torch.Tensor,
+        data_split_logging: Optional[str] = None,
+        device: str = "cuda",
+        **kwargs,
+    ) -> dict[str, torch.Tensor] | torch.Tensor:
+
+        if generated_predictions.shape != targets.shape:
+            raise ValueError(
+                "The generated predictions and targets must be the same shape."
+            )
+
+        if data_split_logging is None:
+            return self.bce_fn(generated_predictions, targets)
+
+        self.data_split_logging = data_split_logging
+        self.device = device
+
+        bce_per_pixel = F.binary_cross_entropy_with_logits(
+            generated_predictions, targets, reduction="none"
+        )
+
+        self.total_loss += bce_per_pixel.sum().detach().to(self.device)
+        self.total_elements += bce_per_pixel.numel()
+
+        return None
+
+    def get_metric_data(self) -> dict[str, torch.Tensor]:
+        average_loss = (
+            self.total_loss / self.total_elements
+            if self.total_elements > 0
+            else torch.tensor(0.0, device=self.device)
+        )
+
+        key = "bce_loss" if self.is_loss else "bce"
+        key += f"_{self.data_split_logging}"
+
+        self.reset()
+        return {key: average_loss}
