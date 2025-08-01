@@ -1,11 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import mlflow
 import torch
-from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
-from utils.SampleImages import SampleImages
+from utils.SaveEpochSlices import SaveEpochSlices
 
 
 class Callbacks:
@@ -14,12 +13,12 @@ class Callbacks:
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
-        sample_images: Optional[SampleImages] = None,
+        image_savers: Optional[Union[SaveEpochSlices, List[SaveEpochSlices]]] = None,
     ):
         self.metrics = metrics
         self.loss = loss
         self.early_stopping_counter_threshold = early_stopping_counter_threshold
-        self.sample_images = sample_images
+        self.image_savers = image_savers
         self.best_loss_value = float("inf")
         self.early_stopping_counter = 0
         self.loss_value = None
@@ -117,10 +116,14 @@ class Callbacks:
                 **kwargs,
             )
 
-        self._assess_early_stopping(epoch=epoch)
+        if self.image_savers is not None and not isinstance(self.image_savers, list):
+            self.image_savers()
 
-        if self.sample_images is not None:
-            image_samples = self.sample_images()
+        elif isinstance(self.image_savers, list):
+            for image_saver in self.image_savers:
+                image_saver()
+
+        return self._assess_early_stopping(epoch=epoch)
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass

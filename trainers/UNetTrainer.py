@@ -26,7 +26,6 @@ class UNetTrainer:
         val_dataloader: torch.utils.data.Dataset,
         callbacks=False,
         epochs: int = 10,
-        patience: int = 5,
     ):
 
         self.model = model
