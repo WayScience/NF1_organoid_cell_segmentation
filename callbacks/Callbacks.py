@@ -75,10 +75,18 @@ class Callbacks:
 
         self._log_metrics(time_step=time_step, data_split=data_split)
 
-    def _assess_early_stopping(self, epoch: int, **kwargs) -> bool:
+    def _assess_early_stopping(
+        self, epoch: int, input_example: Module, model: Module, **kwargs
+    ) -> bool:
         if self.best_loss_value > self.loss_value:
             self.best_loss_value = self.loss_value
             self.early_stopping_counter = 0
+
+            mlflow.pytorch.log_model(
+                model,
+                artifact_path="model",
+                input_example=input_example,
+            )
         else:
             self.early_stopping_counter += 1
             if self.early_stopping_counter >= self.early_stopping_counter_threshold:
@@ -122,7 +130,12 @@ class Callbacks:
             for image_saver in self.image_savers:
                 image_saver()
 
-        return self._assess_early_stopping(epoch=epoch)
+        val_sample = next(iter(val_dataloader))
+        val_sample = val_sample["input"].unsqueeze(0)
+
+        return self._assess_early_stopping(
+            epoch=epoch, input_example=val_sample, model=model
+        )
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass
