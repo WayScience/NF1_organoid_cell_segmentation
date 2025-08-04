@@ -1,24 +1,25 @@
 import pathlib
 from collections import defaultdict
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import tifffile
 
 
-class NonBlackSliceSelector:
+class GenericSliceSelector:
     """
-    Selects the z-slices to be passed as input to the segmentation model from a selection of modes.
+    Selects the z-slices to be passed as input to the segmentation model.
     """
 
     def __init__(
         self,
         number_of_slices: int,
-        strategy: str = "all_nonblack",
-        black_threshold: int = 1 / 16,
+        filter_black_slices: bool = False,
         stride: int = 1,
+        black_threshold: int = 1 / 16,
     ):
         self.number_of_slices = number_of_slices
+        self.filter_black_slices = filter_black_slices
         self.black_threshold = black_threshold
         self.stride = stride
 
@@ -55,21 +56,23 @@ class NonBlackSliceSelector:
             self.neighbors_per_side, img.shape[0] - self.neighbors_per_side, self.stride
         ):
 
-            select_slice = True
+            reject_slice = True
             selected_zslices = []
 
             for z_index_neigh in range(
                 z_index - self.neighbors_per_side,
                 z_index + self.neighbors_per_side + 1,
             ):
-                if z_index_neigh in black_zslices or self.is_black(img[z_index_neigh]):
-                    select_slice = False
+                if (
+                    z_index_neigh in black_zslices or self.is_black(img[z_index_neigh])
+                ) and self.filter_black_slices:
+                    reject_slice = False
                     black_zslices.add(z_index_neigh)
                     break
 
                 selected_zslices.append(z_index_neigh)
 
-            if not select_slice:
+            if not reject_slice:
                 continue
 
             zslice_groups[img_path.parent].append(
