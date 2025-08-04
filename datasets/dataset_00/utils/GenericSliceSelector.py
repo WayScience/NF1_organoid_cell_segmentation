@@ -32,13 +32,14 @@ class GenericSliceSelector:
         """
         Get the max possible pixel value of the input images.
         """
-        self.input_max_pixel_value = np.iinfo(
-            tifffile.imread(img_paths[0]["input_path"]).astype(np.float32).dtype
-        ).max
 
-        self.target_max_pixel_value = np.iinfo(
-            tifffile.imread(img_paths[0]["target_path"]).astype(np.float32).dtype
-        ).max
+        input_example = tifffile.imread(img_paths[0]["input_path"])
+        target_example = tifffile.imread(img_paths[0]["target_path"])
+
+        self.input_max_pixel_value = np.iinfo(input_example.dtype).max
+
+        self.input_ndim = input_example.ndim
+        self.target_ndim = target_example.ndim
 
     def is_black(self, slice: np.ndarray) -> bool:
         if self.filter_black_slices:
@@ -82,7 +83,7 @@ class GenericSliceSelector:
 
         return zslice_groups
 
-    def select_overlapping_slices(
+    def select_symmetric_centered_overlapping_slices(
         self,
         data_locations: list[dict[str, dict[pathlib.Path, dict[str, Any]]]],
     ) -> list[dict[str, Any]]:
@@ -94,17 +95,17 @@ class GenericSliceSelector:
                 target_info = locations["target"][location]
                 input_info = locations["input"][location]
 
-                for target_slice in target_info["z_slices"]:
-                    for input_slice in input_info["z_slices"]:
+                for target_slice_data in target_info:
+                    for input_slice_data in input_info:
                         if self._has_centered_symmetric_overlap(
-                            target_slice, input_slice
+                            target_slice_data["z_slices"], input_slice_data["z_slices"]
                         ):
                             overlapping_data.append(
                                 {
-                                    "input_slices": input_slice,
-                                    "input_path": input_info["file_path"],
-                                    "target_slices": target_slice,
-                                    "target_path": target_info["file_path"],
+                                    "input_slices": input_slice_data["z_slices"],
+                                    "input_path": input_slice_data["file_path"],
+                                    "target_slices": target_slice_data["z_slices"],
+                                    "target_path": target_slice_data["file_path"],
                                 }
                             )
                             break
@@ -114,6 +115,7 @@ class GenericSliceSelector:
     def _has_centered_symmetric_overlap(
         target_slice: list[int], input_slice: list[int]
     ) -> bool:
+
         def is_symmetric(slices: list[int]) -> bool:
             if len(slices) % 2 == 0:
                 return False
@@ -142,17 +144,19 @@ class GenericSliceSelector:
 
         for img_path in img_paths:
             z_slices_input = self.select_all_nonblack(
-                tifffile.imread(img_path["input"]).astype(np.float32)
+                tifffile.imread(img_path["input_path"]).astype(np.float32)
                 / self.input_max_pixel_value,
-                img_path["input"],
+                img_path["input_path"],
             )
 
+            target_img = tifffile.imread(img_path["target_path"])
+            target_img = (target_img != 0).astype(np.float32)
+
             z_slices_target = self.select_all_nonblack(
-                tifffile.imread(img_path["target"]).astype(np.float32)
-                / self.target_max_pixel_value,
-                img_path["target"],
+                target_img,
+                img_path["target_path"],
             )
 
             data_locations.append({"input": z_slices_input, "target": z_slices_target})
 
-        return self.select_overlapping_slices(data_locations)
+        return self.select_symmetric_centered_overlapping_slices(data_locations)

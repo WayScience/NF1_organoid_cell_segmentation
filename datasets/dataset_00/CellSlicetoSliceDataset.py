@@ -34,19 +34,10 @@ class CellSlicetoSliceDataset(Dataset):
         self.data_paths = self.get_image_paths()
         self.data_slices = image_selector(self.data_paths)
 
-        input_example = tifffile.imread(self.data_slices[0]["input_path"]).astype(
-            np.float32
-        )
-        target_example = tifffile.imread(self.data_slices[0]["target_path"]).astype(
-            np.float32
-        )
-        target_example = (target_example != 0).astype(np.float32)
+        self.input_max_pixel_value = image_selector.input_max_pixel_value
+        self.input_ndim = image_selector.input_ndim
+        self.target_ndim = image_selector.target_ndim
 
-        self.input_ndim = input_example.ndim
-        self.target_ndim = target_example.ndim
-
-        self.input_max_pixel_value = np.iinfo(input_example.dtype).max
-        self.target_max_pixel_value = np.iinfo(target_example.dtype).max
         self.split_data = False
 
     def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
@@ -84,9 +75,7 @@ class CellSlicetoSliceDataset(Dataset):
             )
 
             for bright_path in brightfield_paths:
-                mask_path = bright_path.with_name(
-                    bright_path.with_name("cell_masks.tiff")
-                )
+                mask_path = bright_path.with_name("cell_masks.tiff")
 
                 if mask_path.exists():
                     image_mask_pairs.append(
@@ -121,11 +110,15 @@ class CellSlicetoSliceDataset(Dataset):
 
         self.input_path = self.data_slices[_idx]["input_path"]
         self.target_path = self.data_slices[_idx]["target_path"]
-        self.well, self.fov = self.input_path.parent.split("-")
-        self.input_slices = sorted(self.data_slices["input_slices"], reverse=False)
-        self.target_slices = sorted(self.data_slices["target_slices"], reverse=False)
+        self.well, self.fov = str(self.input_path.parent).split("/")[-1].split("-")
+        self.input_slices = sorted(
+            self.data_slices[_idx]["input_slices"], reverse=False
+        )
+        self.target_slices = sorted(
+            self.data_slices[_idx]["target_slices"], reverse=False
+        )
 
-        self.patient = self.data_slices[_idx].parents[2]
+        self.patient = str(self.input_path.parents[2]).split("/")[-1]
         input_slice_str = "".join(map(str, self.input_slices))
         target_slice_str = "".join(map(str, self.target_slices))
 
