@@ -13,29 +13,31 @@ class NonBlackSliceSelector:
 
     def __init__(
         self,
-        data_slices: int,
         number_of_slices: int,
         strategy: str = "all_nonblack",
         black_threshold: int = 1 / 16,
         stride: int = 1,
     ):
-        self.data_slices = data_slices
         self.number_of_slices = number_of_slices
         self.black_threshold = black_threshold
         self.stride = stride
-
-        self.input_max_pixel_value = np.iinfo(
-            tifffile.imread(data_slices[0]["input"]).astype(np.float32).dtype
-        ).max
-
-        self.target_max_pixel_value = np.iinfo(
-            tifffile.imread(data_slices[0]["target"]).astype(np.float32).dtype
-        ).max
 
         self.neighbors_per_side = self.number_of_slices // 2
 
         if self.number_of_slices % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")
+
+    def get_image_specs(self, img_paths: list[dict[str, pathlib.Path]]) -> None:
+        """
+        Get the max possible pixel value of the input images.
+        """
+        self.input_max_pixel_value = np.iinfo(
+            tifffile.imread(img_paths[0]["input_path"]).astype(np.float32).dtype
+        ).max
+
+        self.target_max_pixel_value = np.iinfo(
+            tifffile.imread(img_paths[0]["target_path"]).astype(np.float32).dtype
+        ).max
 
     def is_black(self, slice: np.ndarray) -> bool:
         return np.mean(slice) < self.black_threshold
@@ -108,11 +110,13 @@ class NonBlackSliceSelector:
         i_start, i_end = input_slices
         return t_start >= i_start and t_end <= i_end
 
-    def __call__(self) -> list[dict[str, Any]]:
+    def __call__(
+        self, img_paths: list[dict[str, pathlib.Path]]
+    ) -> list[dict[str, Any]]:
         """Select slices using the chosen mode."""
 
         data_locations = []
-        for img_path in self.data_slices:
+        for img_path in img_paths:
             z_slices_input = self.select_all_nonblack(
                 tifffile.imread(img_path["input"]).astype(np.float32)
                 / self.input_max_pixel_value,

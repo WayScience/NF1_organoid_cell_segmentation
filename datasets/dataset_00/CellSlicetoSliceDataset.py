@@ -1,5 +1,5 @@
 import pathlib
-from typing import Iterable, Optional, Union
+from typing import Any, Iterable, Optional, Union
 
 import numpy as np
 import tifffile
@@ -7,7 +7,6 @@ import torch
 from albumentations import ImageOnlyTransform
 from PIL import Image
 from torch.utils.data import Dataset
-from utils.ZSliceSelector import ZSliceSelector
 
 
 class CellSlicetoSliceDataset(Dataset):
@@ -20,10 +19,10 @@ class CellSlicetoSliceDataset(Dataset):
         self,
         root_data_path: pathlib.Path,
         patient_folders: list[str],
+        image_selector: Any,
         input_transform: Optional[ImageOnlyTransform] = None,
         target_transform: Optional[ImageOnlyTransform] = None,
         device: Union[torch.device, str] = "cuda",
-        **zslice_selector_configs,
     ):
         self.root_data_path = root_data_path
         self.patient_folders = patient_folders
@@ -32,8 +31,8 @@ class CellSlicetoSliceDataset(Dataset):
         self.__target_transform = target_transform
 
         self.device = device
-        self.data_paths = self.store_fov_patients()
-        self.data_slices = ZSliceSelector(self.data_paths, **zslice_selector_configs)
+        self.data_paths = self.get_image_paths()
+        self.data_slices = image_selector(self.data_paths)
 
         input_example = tifffile.imread(self.data_slices[0]["input_path"]).astype(
             np.float32
@@ -68,10 +67,9 @@ class CellSlicetoSliceDataset(Dataset):
 
         return img.to(dtype=torch.float32, device=self.device)
 
-    def store_fov_patients(self):
+    def get_image_paths(self):
         """
-        Store the FOV paths of the specified patients using by
-        performing a recursive search from the specified root_data_path.
+        Get the image path of patients.
         """
 
         root_dir = pathlib.Path(self.root_data_path)
@@ -91,7 +89,9 @@ class CellSlicetoSliceDataset(Dataset):
                 )
 
                 if mask_path.exists():
-                    image_mask_pairs.append({"input": bright_path, "target": mask_path})
+                    image_mask_pairs.append(
+                        {"input_path": bright_path, "target_path": mask_path}
+                    )
 
         return image_mask_pairs
 
