@@ -115,7 +115,9 @@ class NonBlackSliceSelector:
     ) -> list[dict[str, Any]]:
         """Select slices using the chosen mode."""
 
+        self.get_image_specs(img_paths=img_paths)
         data_locations = []
+
         for img_path in img_paths:
             z_slices_input = self.select_all_nonblack(
                 tifffile.imread(img_path["input"]).astype(np.float32)
