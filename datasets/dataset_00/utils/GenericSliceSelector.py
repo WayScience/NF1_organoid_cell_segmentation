@@ -1,6 +1,6 @@
 import pathlib
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import tifffile
@@ -41,7 +41,10 @@ class GenericSliceSelector:
         ).max
 
     def is_black(self, slice: np.ndarray) -> bool:
-        return np.mean(slice) < self.black_threshold
+        if self.filter_black_slices:
+            return np.mean(slice) < self.black_threshold
+
+        return False
 
     def select_all_nonblack(
         self, img: np.ndarray, img_path: pathlib.Path
@@ -63,9 +66,7 @@ class GenericSliceSelector:
                 z_index - self.neighbors_per_side,
                 z_index + self.neighbors_per_side + 1,
             ):
-                if (
-                    z_index_neigh in black_zslices or self.is_black(img[z_index_neigh])
-                ) and self.filter_black_slices:
+                if z_index_neigh in black_zslices or self.is_black(img[z_index_neigh]):
                     reject_slice = False
                     black_zslices.add(z_index_neigh)
                     break
@@ -95,7 +96,9 @@ class GenericSliceSelector:
 
                 for target_slice in target_info["z_slices"]:
                     for input_slice in input_info["z_slices"]:
-                        if self._has_overlap(target_slice, input_slice):
+                        if self._has_centered_symmetric_overlap(
+                            target_slice, input_slice
+                        ):
                             overlapping_data.append(
                                 {
                                     "input_slices": input_slice,
@@ -108,15 +111,31 @@ class GenericSliceSelector:
         return overlapping_data
 
     @staticmethod
-    def _has_overlap(target_slice: list[int], input_slices: list[int]) -> bool:
-        t_start, t_end = target_slice
-        i_start, i_end = input_slices
-        return t_start >= i_start and t_end <= i_end
+    def _has_centered_symmetric_overlap(
+        target_slice: list[int], input_slice: list[int]
+    ) -> bool:
+        def is_symmetric(slices: list[int]) -> bool:
+            if len(slices) % 2 == 0:
+                return False
+            mid = len(slices) // 2
+            center = slices[mid]
+            left = slices[:mid]
+            right = slices[mid + 1 :]
+            expected_left = [center - i for i in range(1, mid + 1)][::-1]
+            expected_right = [center + i for i in range(1, mid + 1)]
+            return left == expected_left and right == expected_right
+
+        return (
+            is_symmetric(target_slice)
+            and is_symmetric(input_slice)
+            and target_slice[len(target_slice) // 2]
+            == input_slice[len(input_slice) // 2]
+            and len(target_slice) <= len(input_slice)
+        )
 
     def __call__(
         self, img_paths: list[dict[str, pathlib.Path]]
     ) -> list[dict[str, Any]]:
-        """Select slices using the chosen mode."""
 
         self.get_image_specs(img_paths=img_paths)
         data_locations = []
