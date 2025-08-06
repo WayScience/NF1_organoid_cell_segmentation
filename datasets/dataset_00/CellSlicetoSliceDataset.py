@@ -84,6 +84,9 @@ class CellSlicetoSliceDataset(Dataset):
 
         return image_mask_pairs
 
+    def __len__(self):
+        return len(self.data_slices)
+
     @property
     def input_transform(self):
         return self.__input_transform

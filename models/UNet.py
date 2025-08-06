@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from UnetLayers import *
+
+from .UNetLayers import *
 
 
 class UNet(nn.Module):
@@ -9,7 +10,6 @@ class UNet(nn.Module):
         self,
         in_channels: int,
         out_channels: int,
-        bilinear: bool = True,
     ):
         super().__init__()
 
@@ -124,7 +124,7 @@ class UNet(nn.Module):
         logits = self.outc(xup)
 
         # This will crop out any of the padded sections.
-        # to improve model updates by not considering unuseful areas (padded areas)
+        # to improve model updates by not considering useless areas (padded areas)
         if any(pad):
             left, right, top, bottom = pad
             logits = logits[

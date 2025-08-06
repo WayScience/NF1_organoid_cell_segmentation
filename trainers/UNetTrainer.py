@@ -1,10 +1,10 @@
 from typing import Union
 
 import torch
-from losses.AbstractLoss import AbstractLoss
 from torch.utils.data import DataLoader
 
-from ..callbacks.Callbacks import Callbacks
+from callbacks.Callbacks import Callbacks
+from metrics.AbstractMetric import AbstractMetric
 
 
 class UNetTrainer:
@@ -16,7 +16,7 @@ class UNetTrainer:
         self,
         model: torch.nn.Module,
         model_optimizer: torch.optim.Optimizer,
-        model_loss: AbstractLoss,
+        model_loss: AbstractMetric,
         train_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         val_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         callbacks: Callbacks,

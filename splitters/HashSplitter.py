@@ -1,8 +1,9 @@
 import pathlib
 from collections import defaultdict
+from typing import Tuple
 
 from farmhash import Fingerprint64
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset, Subset, default_collate
 
 
 class HashSplitter:
@@ -13,43 +14,72 @@ class HashSplitter:
         train_frac: float = 0.8,
         val_frac: float = 0.1,
     ) -> None:
-        self.dataset: Dataset = dataset
-        self.batch_size: int = batch_size
-        self.train_frac: float = train_frac
-        self.val_frac: float = val_frac
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.train_frac = train_frac
+        self.val_frac = val_frac
 
-    def __call__(self) -> tuple[DataLoader, DataLoader, DataLoader]:
-        divisor = 10**6
-        upper_train_thresh = int(self.train_frac * divisor)
-        upper_val_thresh = int(self.val_frac * divisor) + upper_train_thresh
-        data_indices = defaultdict(list)
+    @staticmethod
+    def custom_collate_fn(batch):
+        """
+        Ensures that pathlib paths can be collated by the dataloader, and
+        ensures that other metadata consist of lists instead of pytorch tensors.
+        """
+        collated = {}
+        skip_collate_subkeys = {"Metadata_Input_Slices", "Metadata_Target_Slices"}
 
-        for sample_idx, sample_pair in enumerate(self.dataset):
-            sample_num_id = Fingerprint64(sample_pair["Metadata_ID"]) % divisor
+        for key in batch[0]:
+            values = [d[key] for d in batch]
 
-            if sample_num_id < upper_train_thresh:
-                data_indices["train_idxs"].append(sample_idx)
-            elif sample_num_id >= upper_val_thresh:
-                data_indices["test_idxs"].append(sample_idx)
+            if isinstance(values[0], pathlib.Path):
+                collated[key] = values
+
+            elif key == "metadata":
+                metadata_collated = {}
+                for meta_key in values[0]:
+                    meta_values = [v[meta_key] for v in values]
+
+                    if meta_key in skip_collate_subkeys:
+                        # Convert tensors to lists here
+                        metadata_collated[meta_key] = [
+                            v.tolist() if hasattr(v, "tolist") else v
+                            for v in meta_values
+                        ]
+                    else:
+                        metadata_collated[meta_key] = default_collate(meta_values)
+
+                collated["metadata"] = metadata_collated
+
             else:
-                data_indices["val_idxs"].append(sample_idx)
+                collated[key] = default_collate(values)
 
-        train_dataloader = DataLoader(
-            Subset(self.dataset, data_indices["train_idxs"]),
-            batch_size=self.batch_size,
-            shuffle=True,
+        return collated
+
+    def __call__(self) -> Tuple[DataLoader, DataLoader, DataLoader]:
+        divisor = 10**6
+        self.upper_train_thresh = int(self.train_frac * divisor)
+        self.upper_val_thresh = int(self.val_frac * divisor) + self.upper_train_thresh
+        splits = defaultdict(list)
+
+        for idx, sample in enumerate(self.dataset):
+            sample_id = Fingerprint64(sample["metadata"]["Metadata_ID"]) % divisor
+            if sample_id < self.upper_train_thresh:
+                splits["train"].append(idx)
+            elif sample_id < self.upper_val_thresh:
+                splits["val"].append(idx)
+            else:
+                splits["test"].append(idx)
+
+        def make_loader(indices, shuffle):
+            return DataLoader(
+                Subset(self.dataset, indices),
+                batch_size=self.batch_size,
+                shuffle=shuffle,
+                collate_fn=self.custom_collate_fn,
+            )
+
+        return (
+            make_loader(splits["train"], shuffle=True),
+            make_loader(splits["val"], shuffle=False),
+            make_loader(splits["test"], shuffle=False),
         )
-
-        val_dataloader = DataLoader(
-            Subset(self.dataset, data_indices["val_idxs"]),
-            batch_size=self.batch_size,
-            shuffle=False,
-        )
-
-        test_dataloader = DataLoader(
-            Subset(self.dataset, data_indices["test_idxs"]),
-            batch_size=self.batch_size,
-            shuffle=False,
-        )
-
-        return train_dataloader, val_dataloader, test_dataloader

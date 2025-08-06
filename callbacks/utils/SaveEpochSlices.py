@@ -1,19 +1,20 @@
 import pathlib
 import tempfile
-from typing import Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union
 
 import mlflow
 import numpy as np
 import tifffile
 import torch
-from utils.SampleImages import SampleImages
 
 
 class SaveEpochSlices:
 
-    def __init__(self, sample_images_obj: SampleImages, data_split: str) -> None:
+    def __init__(
+        self, sampled_images: dict[str, dict[str, Any]], data_split: str
+    ) -> None:
 
-        self.sampled_images = sample_images_obj()
+        self.sampled_images = sampled_images
         self.data_split = data_split
 
     def load_and_slice(

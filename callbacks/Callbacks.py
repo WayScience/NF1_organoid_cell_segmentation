@@ -1,10 +1,9 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any
 
 import mlflow
 import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
-from utils.SaveEpochSlices import SaveEpochSlices
 
 
 class Callbacks:
@@ -13,7 +12,7 @@ class Callbacks:
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
-        image_savers: Optional[Union[SaveEpochSlices, List[SaveEpochSlices]]] = None,
+        image_savers: Optional[Union[Any, List[Any]]] = None,
     ):
         self.metrics = metrics
         self.loss = loss
@@ -124,7 +123,7 @@ class Callbacks:
             )
 
         if self.image_savers is not None and not isinstance(self.image_savers, list):
-            self.image_savers()
+            self.image_savers(model=model)
 
         elif isinstance(self.image_savers, list):
             for image_saver in self.image_savers:

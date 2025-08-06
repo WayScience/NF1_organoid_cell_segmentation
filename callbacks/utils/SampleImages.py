@@ -11,63 +11,67 @@ class SampleImages:
     """
 
     def __init__(
-        self, lower_threshold: int, upper_threshold: int, dataloader: DataLoader
+        self,
+        dataloader: DataLoader,
+        splitter: Any,
+        data_split: str,
+        number_of_images: int,
     ) -> None:
         self.divisor = 10**6
-        self.lower_threshold = int(lower_threshold * self.divisor)
-        self.upper_threshold = int(upper_threshold * self.divisor)
+        dataloader.dataset.split_data = True
         self.dataloader = dataloader
 
-    def __call__(self) -> Dict[str, Dict[str, Any]]:
+        image_fraction = number_of_images / len(self.dataloader.dataset)
 
+        if data_split == "validation":
+            self.lower_thresh = splitter.upper_train_thresh
+            self.upper_thresh = (
+                int(splitter.upper_val_thresh * image_fraction) + self.lower_thresh
+            )
+
+        else:
+            raise ValueError("Please specify a valid argument for data_split")
+
+    def __call__(self) -> Dict[str, Dict[str, Any]]:
         images_metadata: Dict[str, Dict[str, Any]] = {}
 
         for batch_data in self.dataloader:
-            for input_path, target_path, image_metadata in zip(
-                batch_data["input_path"],
-                batch_data["target_path"],
-                batch_data["metadata"],
+            metadata = batch_data["metadata"]
+            input_paths = batch_data["input_path"]
+            target_paths = batch_data["target_path"]
+
+            for idx, (input_path, target_path) in enumerate(
+                zip(input_paths, target_paths)
             ):
-                image_metadata_copy = image_metadata.copy()
-                image_num_id = (
-                    Fingerprint64(image_metadata_copy["Metadata_ID"]) % self.divisor
+                metadata_id = metadata["Metadata_ID"][idx]
+                if metadata_id is None:
+                    continue
+
+                image_num_id = Fingerprint64(metadata_id) % self.divisor
+                if not self.lower_thresh < image_num_id < self.upper_thresh:
+                    continue
+
+                if metadata_id not in images_metadata:
+                    images_metadata[metadata_id] = {
+                        key: value[idx]
+                        for key, value in metadata.items()
+                        if key != "Metadata_ID"
+                    }
+                    images_metadata[metadata_id]["Metadata_Input_Slices"] = []
+                    images_metadata[metadata_id]["Metadata_Target_Slices"] = []
+                    images_metadata[metadata_id]["input_path"] = input_path
+                    images_metadata[metadata_id]["target_path"] = target_path
+
+                images_metadata[metadata_id]["Metadata_Input_Slices"].append(
+                    metadata["Metadata_Input_Slices"][idx]
+                )
+                images_metadata[metadata_id]["Metadata_Target_Slices"].append(
+                    metadata["Metadata_Target_Slices"][idx]
                 )
 
-                if self.lower_threshold < image_num_id < self.upper_threshold:
-                    metadata_id = image_metadata_copy.pop("Metadata_ID", None)
-
-                    if metadata_id is not None:
-                        if metadata_id not in images_metadata:
-                            images_metadata[metadata_id] = copy.deepcopy(
-                                image_metadata_copy
-                            )
-                            images_metadata[metadata_id]["Metadata_Input_Slices"] = []
-                            images_metadata[metadata_id]["Metadata_Target_Slices"] = []
-
-                        for data_type in ["Input", "Target"]:
-
-                            metadata_key = f"Metadata_{data_type}_Slices"
-
-                            images_metadata[metadata_id][metadata_key].append(
-                                image_metadata_copy[metadata_key]
-                            )
-
-                            images_metadata[metadata_id][metadata_key] = sorted(
-                                images_metadata[metadata_id][metadata_key],
-                                reverse=False,
-                            )
-
-                            if data_type == "Input":
-                                images_metadata[metadata_id]["input_path"] = input_path
-
-                            else:
-                                images_metadata[metadata_id][
-                                    "target_path"
-                                ] = target_path
-
         for metadata in images_metadata.values():
-            for key in ["Metadata_Input_Slices", "Metadata_Target_Slices"]:
-                metadata[key] = sorted(metadata[key], reverse=False)
+            metadata["Metadata_Input_Slices"].sort(reverse=False)
+            metadata["Metadata_Target_Slices"].sort(reverse=False)
 
         if not images_metadata:
             raise ValueError(
