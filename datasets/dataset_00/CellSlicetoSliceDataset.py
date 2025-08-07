@@ -20,9 +20,9 @@ class CellSlicetoSliceDataset(Dataset):
         root_data_path: pathlib.Path,
         patient_folders: list[str],
         image_selector: Any,
+        image_preprocessor: Any,
         input_transform: Optional[ImageOnlyTransform] = None,
         target_transform: Optional[ImageOnlyTransform] = None,
-        device: Union[torch.device, str] = "cuda",
     ):
         self.root_data_path = root_data_path
         self.patient_folders = patient_folders
@@ -30,33 +30,15 @@ class CellSlicetoSliceDataset(Dataset):
         self.__input_transform = input_transform
         self.__target_transform = target_transform
 
-        self.device = device
         self.data_paths = self.get_image_paths()
         self.data_slices = image_selector(self.data_paths)
+        self.image_preprocessor = image_preprocessor(image_selector, pad_to_multiple=16)
 
         self.input_max_pixel_value = image_selector.input_max_pixel_value
         self.input_ndim = image_selector.input_ndim
         self.target_ndim = image_selector.target_ndim
 
         self.split_data = False
-
-    def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
-        """
-        Formats an image base on the number of image dimensions.
-        """
-
-        if img_dims == 2:
-            img = torch.from_numpy(img).unsqueeze(0)
-
-        elif img_dims == 3:
-            img = torch.from_numpy(img)
-
-        else:
-            raise ValueError(
-                f"The number of dimensions in your image should be 2 or 3. It is currently {img_dims}"
-            )
-
-        return img.to(dtype=torch.float32, device=self.device)
 
     def get_image_paths(self):
         """
@@ -135,30 +117,22 @@ class CellSlicetoSliceDataset(Dataset):
                 "target_path": self.target_path,
             }
 
-        input_image = (
-            tifffile.imread(self.input_path).astype(np.float32)
-            / self.input_max_pixel_value
-        )[self.input_slices]
+        input_image = (tifffile.imread(self.input_path).astype(np.float32))[
+            self.input_slices
+        ]
 
         target_image = (tifffile.imread(self.target_path).astype(np.float32))[
             self.target_slices
         ]
 
-        target_image = (target_image != 0).astype(np.float32)
-
-        if self.__input_transform:
-            input_image = self.__input_transform(image=input_image)["image"]
-
-        if self.__target_transform:
-            target_image = self.__target_transform(image=target_image)["image"]
-
-        input_image = self.format_img(input_image, self.input_ndim)
-        target_image = self.format_img(target_image, self.target_ndim)
+        self.processing_data = self.image_preprocessor(input_img=input_image)
+        input_image = self.processing_data.pop("input_image")
 
         return {
             "input": input_image,
             "target": target_image,
             "metadata": self.metadata,
+            "processing_metadata": self.processing_data,
             "input_path": self.input_path,
             "target_path": self.target_path,
         }
