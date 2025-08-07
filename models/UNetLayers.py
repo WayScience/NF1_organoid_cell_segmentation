@@ -27,7 +27,7 @@ class Conv(nn.Module):
             bias=False,
         )
 
-        self.norm = normalization
+        self.norm = normalization(out_channels)
         self.relu = nn.ReLU(inplace=True)
         self.pooling = pooling
 
@@ -40,28 +40,45 @@ class Conv(nn.Module):
         return x
 
 
-class DoubleConv:
+class DoubleConv(nn.Module):
     def __init__(
         self,
-        normalization0: nn.Module,
-        normalization1: nn.Module,
+        normalization: nn.Module,
         ascending: bool,
-        **kwargs,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        stride: int,
+        padding: int,
+        padding_mode: str = "zeros",
+        pooling: nn.Module = None,
     ):
-        kwargs["normalization"] = normalization0
+        super().__init__()
 
-        self.xl = Conv(**kwargs)
+        self.xl = Conv(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            padding_mode=padding_mode,
+            normalization=normalization,
+            pooling=pooling,
+        )
 
-        kwargs["in_channels"] = kwargs["out_channels"]
-        kwargs["normalization"] = normalization1
+        self.xr = Conv(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=1 if ascending else 2,
+            padding=padding,
+            padding_mode=padding_mode,
+            normalization=normalization,
+            pooling=None,
+        )
 
-        if not ascending:
-            kwargs["stride"] *= 2
-
-        self.xr = Conv(**kwargs)
-
-    def forward(self):
-        return self.xr(self.xl)
+    def forward(self, tenmap: torch.Tensor) -> torch.Tensor:
+        return self.xr(self.xl(tenmap))
 
 
 class UpConv(nn.Module):
@@ -90,7 +107,7 @@ class UpConv(nn.Module):
     def forward(self, encmap: torch.Tensor, decmap: torch.Tensor) -> torch.Tensor:
         encmap = self.pad_match(encmap, decmap)
         encmap = torch.cat([decmap, encmap], dim=1)
-        return self.up(encmap)
+        return encmap  # Note: return concatenated map; conv is done in DoubleConv
 
 
 class OutConv(nn.Module):
@@ -102,7 +119,7 @@ class OutConv(nn.Module):
         padding: int = 0,
         padding_mode: str = "zeros",
     ):
-        super(OutConv, self).__init__()
+        super().__init__()
         self.conv = nn.Conv2d(
             in_channels=in_channels,
             out_channels=out_channels,
