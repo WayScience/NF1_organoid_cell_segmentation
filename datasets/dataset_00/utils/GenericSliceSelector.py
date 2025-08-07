@@ -1,9 +1,10 @@
 import pathlib
 from collections import defaultdict
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import tifffile
+import torch
 
 
 class GenericSliceSelector:
@@ -17,6 +18,7 @@ class GenericSliceSelector:
         filter_black_slices: bool = False,
         stride: int = 1,
         black_threshold: int = 1 / 16,
+        device: Union[str, torch.device] = "cuda",
     ):
         self.number_of_slices = number_of_slices
         self.filter_black_slices = filter_black_slices
@@ -24,6 +26,7 @@ class GenericSliceSelector:
         self.stride = stride
 
         self.neighbors_per_side = self.number_of_slices // 2
+        self.device = device
 
         if self.number_of_slices % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")
