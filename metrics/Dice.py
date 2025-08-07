@@ -78,12 +78,8 @@ class Dice(AbstractMetric):
             average_dice = torch.tensor(0.0, device=self.device)
             average_iou = torch.tensor(0.0, device=self.device)
         else:
-            average_dice = (2.0 * self.total_intersection + self.smooth) / (
-                self.total_denominator + self.smooth
-            )
-            average_iou = (self.total_intersection + self.smooth) / (
-                self.total_union + self.smooth
-            )
+            average_dice = (2.0 * self.total_intersection) / self.total_denominator
+            average_iou = self.total_intersection / self.total_union
 
         prefix = "loss" if self.is_loss else ""
         key_dice = f"dice_{prefix}_{self.data_split_logging}"

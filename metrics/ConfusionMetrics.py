@@ -21,7 +21,6 @@ class ConfusionMetrics(AbstractMetric):
         self.prediction_threshold = prediction_threshold
         self.use_logits = use_logits
         self.device = device
-        self.data_split_logging: Optional[str] = None
         self.reset()
 
     def reset(self):
@@ -33,7 +32,7 @@ class ConfusionMetrics(AbstractMetric):
         self,
         generated_predictions: torch.Tensor,
         targets: torch.Tensor,
-        data_split_logging: Optional[str] = None,
+        data_split_logging: str,
         **kwargs,
     ) -> dict[str, torch.Tensor] | None:
 
@@ -42,17 +41,16 @@ class ConfusionMetrics(AbstractMetric):
                 "The generated predictions and targets must be the same shape."
             )
 
-        probs = torch.sigmoid(generated_predictions) if self.use_logits else generated_predictions
+        probs = (
+            torch.sigmoid(generated_predictions)
+            if self.use_logits
+            else generated_predictions
+        )
         preds = (probs > self.prediction_threshold).float()
 
         tp = (preds * targets).sum()
         fp = (preds * (1 - targets)).sum()
         fn = ((1 - preds) * targets).sum()
-
-        if data_split_logging is None:
-            precision = tp / (tp + fp + 1e-6)
-            recall = tp / (tp + fn + 1e-6)
-            return {"precision": precision, "recall": recall}
 
         self.data_split_logging = data_split_logging
 
@@ -64,13 +62,13 @@ class ConfusionMetrics(AbstractMetric):
 
     def get_metric_data(self) -> dict[str, torch.Tensor]:
         precision = (
-            self.true_positives / (self.true_positives + self.false_positives + 1e-6)
+            self.true_positives / (self.true_positives + self.false_positives)
             if (self.true_positives + self.false_positives) > 0
             else torch.tensor(0.0, device=self.device)
         )
 
         recall = (
-            self.true_positives / (self.true_positives + self.false_negatives + 1e-6)
+            self.true_positives / (self.true_positives + self.false_negatives)
             if (self.true_positives + self.false_negatives) > 0
             else torch.tensor(0.0, device=self.device)
         )

@@ -26,8 +26,8 @@ class BCE(AbstractMetric):
         self.device = device
 
         if self.is_loss:
-            loss_class = nn.BCEWithLogitsLoss if self.use_logits else nn.BCELoss
-            self.bce_fn = loss_class(reduction=reduction).to(self.device)
+            bce_fn = nn.BCEWithLogitsLoss if self.use_logits else nn.BCELoss
+            self.bce_fn = bce_fn(reduction=reduction).to(self.device)
 
         self.reset()
 
