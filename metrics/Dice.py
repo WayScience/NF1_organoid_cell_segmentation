@@ -1,19 +1,28 @@
 from typing import Optional
 
 import torch
-from torch import nn
+
+from .AbstractMetric import AbstractMetric
 
 
-class Dice(nn.Module):
+class Dice(AbstractMetric):
     """
     Computes the dice score and IOU.
+    Assumes generated_predictions are raw logits.
     """
 
     def __init__(
-        self, smooth: float = 1e-6, is_loss: bool = False, device: str = "cuda"
+        self,
+        smooth: float = 1e-6,
+        use_logits: bool = True,
+        prediction_threshold=0.5,
+        is_loss: bool = False,
+        device: str = "cuda",
     ):
         super().__init__()
         self.smooth = smooth
+        self.use_logits = use_logits
+        self.prediction_threshold = prediction_threshold
         self.is_loss = is_loss
         self.device = device
         self.data_split_logging: Optional[str] = None
@@ -29,7 +38,6 @@ class Dice(nn.Module):
         generated_predictions: torch.Tensor,
         targets: torch.Tensor,
         data_split_logging: Optional[str] = None,
-        device: str = "cuda",
         **kwargs,
     ) -> dict[str, torch.Tensor] | None:
 
@@ -38,10 +46,14 @@ class Dice(nn.Module):
                 "The generated predictions and targets must be the same shape."
             )
 
-        self.device = device
         batch_size = generated_predictions.size(0)
 
-        preds_flat = generated_predictions.view(batch_size, -1)
+        probs = (
+            torch.sigmoid(generated_predictions)
+            if self.use_logits
+            else generated_predictions
+        )
+        preds_flat = (probs > self.prediction_threshold).float().view(batch_size, -1)
         targets_flat = targets.view(batch_size, -1)
 
         intersection = (preds_flat * targets_flat).sum()
