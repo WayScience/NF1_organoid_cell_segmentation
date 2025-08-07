@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Any
+from typing import Any, List, Optional, Union
 
 import mlflow
 import torch
@@ -12,12 +12,14 @@ class Callbacks:
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
+        image_postprocessor: Any,
         image_savers: Optional[Union[Any, List[Any]]] = None,
     ):
         self.metrics = metrics
         self.loss = loss
         self.early_stopping_counter_threshold = early_stopping_counter_threshold
         self.image_savers = image_savers
+        self.image_postprocessor = image_postprocessor
         self.best_loss_value = float("inf")
         self.early_stopping_counter = 0
         self.loss_value = None
@@ -49,16 +51,13 @@ class Callbacks:
 
         model.eval()
 
-        # Compute Metrics
         with torch.no_grad():
             for inputs, targets in dataloader:
-                generated_predictions = model(inputs)
-                pixel_probs = torch.sigmoid(generated_predictions)
+                generated_predictions = self.image_postprocessor(model(inputs))
 
                 for metric in self.metrics:
                     metric(
                         generated_predictions=generated_predictions,
-                        generated_pixel_probs=pixel_probs,
                         targets=targets,
                         data_split_logging=data_split,
                         **kwargs,
@@ -66,7 +65,6 @@ class Callbacks:
 
                 self.loss(
                     generated_predictions=generated_predictions,
-                    generated_pixel_probs=pixel_probs,
                     targets=targets,
                     data_split=data_split,
                     **kwargs,

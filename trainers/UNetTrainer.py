@@ -1,9 +1,8 @@
-from typing import Union
+from typing import Any, Union
 
 import torch
 from torch.utils.data import DataLoader
 
-from callbacks.Callbacks import Callbacks
 from metrics.AbstractMetric import AbstractMetric
 
 
@@ -19,7 +18,8 @@ class UNetTrainer:
         model_loss: AbstractMetric,
         train_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         val_dataloader: Union[torch.utils.data.Dataset, DataLoader],
-        callbacks: Callbacks,
+        image_postprocessor: Any,
+        callbacks: Any,
         epochs: int = 10,
         device: str = "cuda",
     ) -> None:
@@ -29,6 +29,7 @@ class UNetTrainer:
         self.model_loss = model_loss
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
+        self.image_postprocessor = image_postprocessor
         self.callbacks = callbacks
         self.epochs = epochs
         self.device = device
@@ -54,9 +55,10 @@ class UNetTrainer:
                 train_data["batch_data"] = batch_data
                 self.callbacks(**train_data)
 
-                train_data["generated_predictions"] = self.model(
-                    batch_data["input"].to(self.device)
+                train_data["generated_predictions"] = self.image_postprocessor(
+                    img=self.model(batch_data["input"].to(self.device))
                 )
+
                 train_data["model_update_loss"] = self.model_loss(
                     _targets=batch_data["target"].to(self.device),
                     _generated_predictions=train_data["generated_predictions"],
