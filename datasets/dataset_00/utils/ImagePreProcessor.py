@@ -66,7 +66,7 @@ class ImagePreProcessor:
         return img.to(dtype=torch.float32, device=self.device)
 
     def __call__(
-        self, input_img: np.ndarray, target_img: Optional[np.ndarray] = None
+        self, input_img: np.ndarray, target_img: np.ndarray = None
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Tuple[int, int, int, int]]:
 
         if self.input_transform is not None:
@@ -86,10 +86,8 @@ class ImagePreProcessor:
 
         processed_data = {
             "input_image": input_img,
+            "target_image": target_img,
             "input_padding": input_padding,
         }
-
-        if target_img is not None:
-            processed_data["target_image"] = target_img
 
         return processed_data

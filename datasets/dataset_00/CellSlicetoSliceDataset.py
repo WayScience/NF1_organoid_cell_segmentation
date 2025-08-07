@@ -125,8 +125,11 @@ class CellSlicetoSliceDataset(Dataset):
             self.target_slices
         ]
 
-        self.processing_data = self.image_preprocessor(input_img=input_image)
+        self.processing_data = self.image_preprocessor(
+            input_img=input_image, target_img=target_image
+        )
         input_image = self.processing_data.pop("input_image")
+        target_image = self.processing_data.pop("target_image")
 
         return {
             "input": input_image,
