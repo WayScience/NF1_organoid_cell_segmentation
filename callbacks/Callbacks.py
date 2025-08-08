@@ -138,4 +138,4 @@ class Callbacks:
         pass
 
     def __call__(self, callback_hook: str, **kwargs) -> None:
-        getattr(self, f"_on_{callback_hook}")(**kwargs)
+        getattr(self, f"_{callback_hook}")(**kwargs)
