@@ -22,6 +22,7 @@ class UNetTrainer:
         callbacks: Any,
         epochs: int = 10,
         device: str = "cuda",
+        use_amp: bool = True,
     ) -> None:
 
         self.model = model
@@ -33,10 +34,18 @@ class UNetTrainer:
         self.callbacks = callbacks
         self.epochs = epochs
         self.device = device
+        self.use_amp = use_amp
+
+        if self.use_amp and self.device.startswith("cuda"):
+            self.scaler = torch.cuda.amp.GradScaler()
+        else:
+            self.scaler = None
 
     def train(self) -> None:
         train_data = {}
         train_data["continue_training"] = True
+
+        self.model = self.model.to(self.device)
 
         for epoch in range(self.epochs):
             if not train_data["continue_training"]:
@@ -46,7 +55,6 @@ class UNetTrainer:
             train_data["callback_hook"] = "on_epoch_start"
             self.callbacks(**train_data)
 
-            self.model = self.model.to(self.device)
             self.model.train()
 
             for batch, batch_data in enumerate(self.train_dataloader):
@@ -55,19 +63,36 @@ class UNetTrainer:
                 train_data["batch_data"] = batch_data
                 self.callbacks(**train_data)
 
-                train_data["generated_predictions"] = self.image_postprocessor(
-                    img=self.model(batch_data["input"].to(self.device))
-                )
+                inputs = batch_data["input"].to(self.device)
+                targets = batch_data["target"].to(self.device)
 
-                train_data["model_update_loss"] = self.model_loss(
-                    _targets=batch_data["target"].to(self.device),
-                    _generated_predictions=train_data["generated_predictions"],
-                )
+                if self.use_amp and self.scaler is not None:
+                    with torch.cuda.amp.autocast():
+                        outputs = self.model(inputs)
+                        generated_predictions = self.image_postprocessor(img=outputs)
+                        loss = self.model_loss(
+                            _targets=targets,
+                            _generated_predictions=generated_predictions,
+                        )
+                else:
+                    outputs = self.model(inputs)
+                    generated_predictions = self.image_postprocessor(img=outputs)
+                    loss = self.model_loss(
+                        _targets=targets,
+                        _generated_predictions=generated_predictions,
+                    )
 
-                # Update the Model
+                train_data["generated_predictions"] = generated_predictions
+                train_data["model_update_loss"] = loss
+
                 self.model_optimizer.zero_grad()
-                train_data["model_update_loss"].backward()
-                self.model_optimizer.step()
+                if self.use_amp and self.scaler is not None:
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.model_optimizer)
+                    self.scaler.update()
+                else:
+                    loss.backward()
+                    self.model_optimizer.step()
 
                 train_data["model"] = self.model
                 train_data["callback_hook"] = "on_batch_end"
