@@ -31,12 +31,10 @@ class CellSlicetoSliceDataset(Dataset):
         self.__target_transform = target_transform
 
         self.data_paths = self.get_image_paths()
+        image_specs = self.get_image_specs()
+        self.data_slices = image_selector.set_image_specs(**image_specs)
         self.data_slices = image_selector(self.data_paths)
-        self.image_preprocessor = image_preprocessor(image_selector, pad_to_multiple=16)
-
-        self.input_max_pixel_value = image_selector.input_max_pixel_value
-        self.input_ndim = image_selector.input_ndim
-        self.target_ndim = image_selector.target_ndim
+        self.image_preprocessor = image_preprocessor.set_image_specs(**image_specs)
 
         self.split_data = False
 
@@ -65,6 +63,20 @@ class CellSlicetoSliceDataset(Dataset):
                     )
 
         return image_mask_pairs
+
+    def get_image_specs(self) -> None:
+        """
+        Get the sample image specs.
+        """
+
+        input_example = tifffile.imread(self.data_paths[0]["input_path"])
+        target_example = tifffile.imread(self.data_paths[0]["target_path"])
+
+        return {
+            "input_max_pixel_value": np.iinfo(input_example.dtype).max,
+            "input_ndim": input_example.ndim,
+            "target_ndim": target_example.ndim,
+        }
 
     def __len__(self):
         return len(self.data_slices)

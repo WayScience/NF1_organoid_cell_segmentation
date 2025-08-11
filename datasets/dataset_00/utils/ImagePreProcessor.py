@@ -8,18 +8,22 @@ import torch.nn.functional as F
 class ImagePreProcessor:
     def __init__(
         self,
-        image_selector: Any,
         pad_to_multiple: int,
+        device: str = "cuda",
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
     ):
-        self.input_max_pixel_value = image_selector.input_max_pixel_value
-        self.input_ndim = image_selector.input_ndim
-        self.target_ndim = image_selector.target_ndim
+        self.pad_to_multiple = pad_to_multiple
+        self.device = device
         self.input_transform = input_transform
         self.target_transform = target_transform
-        self.pad_to_multiple = pad_to_multiple
-        self.device = image_selector.device
+
+    def set_image_specs(
+        self, input_max_pixel_value: int, input_ndim: int, target_ndim: int, **kwargs
+    ) -> None:
+        self.input_max_pixel_value = input_max_pixel_value
+        self.input_ndim = input_ndim
+        self.target_ndim = target_ndim
 
     def pad_to(
         self, img: torch.Tensor

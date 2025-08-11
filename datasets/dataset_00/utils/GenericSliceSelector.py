@@ -31,18 +31,8 @@ class GenericSliceSelector:
         if self.number_of_slices % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")
 
-    def get_image_specs(self, img_paths: list[dict[str, pathlib.Path]]) -> None:
-        """
-        Get the max possible pixel value of the input images.
-        """
-
-        input_example = tifffile.imread(img_paths[0]["input_path"])
-        target_example = tifffile.imread(img_paths[0]["target_path"])
-
-        self.input_max_pixel_value = np.iinfo(input_example.dtype).max
-
-        self.input_ndim = input_example.ndim
-        self.target_ndim = target_example.ndim
+    def set_image_specs(self, input_max_pixel_value: int, **kwargs) -> None:
+        self.input_max_pixel_value = input_max_pixel_value
 
     def is_black(self, slice: np.ndarray) -> bool:
         if self.filter_black_slices:
@@ -142,7 +132,6 @@ class GenericSliceSelector:
         self, img_paths: list[dict[str, pathlib.Path]]
     ) -> list[dict[str, Any]]:
 
-        self.get_image_specs(img_paths=img_paths)
         data_locations = []
 
         for img_path in img_paths:
