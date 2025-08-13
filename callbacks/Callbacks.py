@@ -122,7 +122,9 @@ class Callbacks:
             )
 
         if self.image_savers is not None and not isinstance(self.image_savers, list):
-            self.image_savers(dataset=val_dataloader.dataset.dataset, model=model)
+            self.image_savers(
+                dataset=val_dataloader.dataset.dataset, model=model, epoch=epoch
+            )
 
         val_sample = next(iter(val_dataloader))
         val_sample = val_sample["input"].unsqueeze(0)

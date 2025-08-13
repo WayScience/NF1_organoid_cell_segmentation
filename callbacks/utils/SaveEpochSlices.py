@@ -40,9 +40,14 @@ class SaveEpochSlices:
         if not ((image > 0.0) & (image < 1.0)).any():
             if image_type == "input":
                 raise ValueError("Pixels should be between 0 and 1 in the input image")
+
+        if image_type == "target":
             image = (image != 0).float()
 
         image = (image * 255).byte().cpu().numpy()
+
+        if np.max(image) == 0:
+            return False
 
         input_slices_name = "_".join(map(str, self.metadata["Metadata_Input_Slices"]))
         target_slices_name = "_".join(map(str, self.metadata["Metadata_Target_Slices"]))
@@ -63,9 +68,7 @@ class SaveEpochSlices:
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
-        save_image_path_folder = (
-            f"{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
-        )
+        save_image_path_folder = f"{self.epoch}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
 
         self.save_image_mlflow(
             image=image,
@@ -73,36 +76,42 @@ class SaveEpochSlices:
             image_filename=image_filename,
         )
 
+        return True
+
     def predict_target(
         self, image: torch.Tensor, model: torch.nn.Module
     ) -> torch.Tensor:
         return torch.sigmoid(model(image.unsqueeze(0)).squeeze(0))
 
     def __call__(
-        self, dataset: torch.utils.data.Dataset, model: torch.nn.Module
+        self, dataset: torch.utils.data.Dataset, model: torch.nn.Module, epoch: int
     ) -> None:
+        self.epoch = epoch
         for sample_idx in self.image_dataset_idxs:
             sample = dataset[sample_idx]
             self.metadata = sample["metadata"]
 
-            self.save_image(
-                image_path=sample["input_path"],
-                image_type="input",
-                image=sample["input"],
-            )
+            print(f"Max first: {torch.max(sample['target'])}")
 
-            self.save_image(
+            sample_image = self.save_image(
                 image_path=sample["target_path"],
                 image_type="target",
                 image=sample["target"],
             )
 
-            generated_prediction = self.predict_target(
-                image=sample["input"], model=model
-            )
+            if sample_image:
+                self.save_image(
+                    image_path=sample["input_path"],
+                    image_type="input",
+                    image=sample["input"],
+                )
 
-            self.save_image(
-                image_path=sample["target_path"],
-                image_type="generated_prediction",
-                image=generated_prediction,
-            )
+                generated_prediction = self.predict_target(
+                    image=sample["input"], model=model
+                )
+
+                self.save_image(
+                    image_path=sample["target_path"],
+                    image_type="generated_prediction",
+                    image=generated_prediction,
+                )
