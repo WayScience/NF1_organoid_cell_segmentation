@@ -68,7 +68,7 @@ class SaveEpochSlices:
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
-        save_image_path_folder = f"{self.epoch}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
+        save_image_path_folder = f"epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
 
         self.save_image_mlflow(
             image=image,
