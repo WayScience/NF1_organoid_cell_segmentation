@@ -18,7 +18,6 @@ class UNetTrainer:
         model_loss: AbstractMetric,
         train_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         val_dataloader: Union[torch.utils.data.Dataset, DataLoader],
-        image_postprocessor: Any,
         callbacks: Any,
         epochs: int = 10,
         device: str = "cuda",
@@ -30,20 +29,21 @@ class UNetTrainer:
         self.model_loss = model_loss
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
-        self.image_postprocessor = image_postprocessor
         self.callbacks = callbacks
         self.epochs = epochs
         self.device = device
         self.use_amp = use_amp
 
         if self.use_amp and self.device.startswith("cuda"):
-            self.scaler = torch.cuda.amp.GradScaler()
+            self.scaler = torch.amp.GradScaler("cuda")
         else:
             self.scaler = None
 
     def train(self) -> None:
         train_data = {}
         train_data["continue_training"] = True
+        train_data["use_amp"] = self.use_amp
+        train_data["device"] = self.device
 
         self.model = self.model.to(self.device)
 
@@ -67,16 +67,14 @@ class UNetTrainer:
                 targets = batch_data["target"].to(self.device)
 
                 if self.use_amp and self.scaler is not None:
-                    with torch.cuda.amp.autocast():
-                        outputs = self.model(inputs)
-                        generated_predictions = self.image_postprocessor(img=outputs)
+                    with torch.amp.autocast("cuda"):
+                        generated_predictions = self.model(inputs)
                         loss = self.model_loss(
-                            _targets=targets,
-                            _generated_predictions=generated_predictions,
+                            targets=targets,
+                            generated_predictions=generated_predictions,
                         )
                 else:
-                    outputs = self.model(inputs)
-                    generated_predictions = self.image_postprocessor(img=outputs)
+                    generated_predictions = self.model(inputs)
                     loss = self.model_loss(
                         _targets=targets,
                         _generated_predictions=generated_predictions,
@@ -98,10 +96,13 @@ class UNetTrainer:
                 train_data["callback_hook"] = "on_batch_end"
 
                 self.callbacks(**train_data)
+                break
 
             train_data["callback_hook"] = "on_epoch_end"
             train_data["continue_training"] = self.callbacks(
-                val_dataloader=self.val_dataloader, **train_data
+                train_dataloader=self.train_dataloader,
+                val_dataloader=self.val_dataloader,
+                **train_data,
             )
 
             if not train_data["continue_training"]:

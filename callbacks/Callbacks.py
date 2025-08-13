@@ -2,6 +2,7 @@ from typing import Any, List, Optional, Union
 
 import mlflow
 import torch
+from torch.amp import autocast
 from torch.nn import Module
 from torch.utils.data import DataLoader
 
@@ -12,14 +13,12 @@ class Callbacks:
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
-        image_postprocessor: Any,
         image_savers: Optional[Union[Any, List[Any]]] = None,
     ):
         self.metrics = metrics
         self.loss = loss
         self.early_stopping_counter_threshold = early_stopping_counter_threshold
         self.image_savers = image_savers
-        self.image_postprocessor = image_postprocessor
         self.best_loss_value = float("inf")
         self.early_stopping_counter = 0
         self.loss_value = None
@@ -46,29 +45,29 @@ class Callbacks:
         model: Module,
         dataloader: DataLoader,
         data_split: str,
+        device: str,
         **kwargs,
     ) -> None:
 
         model.eval()
 
         with torch.no_grad():
-            for inputs, targets in dataloader:
-                generated_predictions = self.image_postprocessor(model(inputs))
+            with autocast(enabled=kwargs["use_amp"], device_type=device):
+                for samples in dataloader:
+                    generated_predictions = model(samples["input"])
 
-                for metric in self.metrics:
-                    metric(
+                    for metric in self.metrics:
+                        metric(
+                            generated_predictions=generated_predictions,
+                            targets=samples["target"],
+                            data_split_logging=data_split,
+                        )
+
+                    self.loss(
                         generated_predictions=generated_predictions,
-                        targets=targets,
-                        data_split_logging=data_split,
-                        **kwargs,
+                        targets=samples["target"],
+                        data_split=data_split,
                     )
-
-                self.loss(
-                    generated_predictions=generated_predictions,
-                    targets=targets,
-                    data_split=data_split,
-                    **kwargs,
-                )
 
         self._log_metrics(time_step=time_step, data_split=data_split)
 
@@ -104,6 +103,7 @@ class Callbacks:
         model: Module,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader,
+        device: str,
         **kwargs,
     ) -> None:
 
@@ -117,15 +117,12 @@ class Callbacks:
                 dataloader=dataloader,
                 data_split=data_split,
                 time_step=epoch,
+                device=device,
                 **kwargs,
             )
 
         if self.image_savers is not None and not isinstance(self.image_savers, list):
-            self.image_savers(model=model)
-
-        elif isinstance(self.image_savers, list):
-            for image_saver in self.image_savers:
-                image_saver()
+            self.image_savers(dataset=val_dataloader.dataset.dataset, model=model)
 
         val_sample = next(iter(val_dataloader))
         val_sample = val_sample["input"].unsqueeze(0)

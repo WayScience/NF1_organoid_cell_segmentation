@@ -25,32 +25,6 @@ class ImagePreProcessor:
         self.input_ndim = input_ndim
         self.target_ndim = target_ndim
 
-    def pad_to(
-        self, img: torch.Tensor
-    ) -> Tuple[torch.Tensor, Tuple[int, int, int, int]]:
-        """
-        Pad tensor (C,H,W) so H and W are divisible by pad_to_multiple.
-        """
-
-        _, h, w = img.shape
-        pad_h = (self.pad_to_multiple - h % self.pad_to_multiple) % self.pad_to_multiple
-        pad_w = (self.pad_to_multiple - w % self.pad_to_multiple) % self.pad_to_multiple
-
-        pad_top = pad_h // 2
-        pad_bottom = pad_h - pad_top
-        pad_left = pad_w // 2
-        pad_right = pad_w - pad_left
-
-        padding = (
-            pad_left,
-            pad_right,
-            pad_top,
-            pad_bottom,
-        )
-        img = F.pad(img, padding, mode="constant", value=0)
-
-        return img, padding
-
     def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
         """
         Formats an image base on the number of image dimensions.
@@ -86,12 +60,9 @@ class ImagePreProcessor:
         input_img = self.format_img(input_img, self.input_ndim)
         target_img = self.format_img(target_img, self.target_ndim)
 
-        input_img, input_padding = self.pad_to(input_img)
-
         processed_data = {
             "input_image": input_img,
             "target_image": target_img,
-            "input_padding": input_padding,
         }
 
         return processed_data

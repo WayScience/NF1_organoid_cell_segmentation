@@ -7,23 +7,25 @@ import tifffile
 import torch
 
 
-class GenericSliceSelector:
+class ImageSelector:
     """
     Selects the z-slices to be passed as input to the segmentation model.
     """
 
     def __init__(
         self,
-        number_of_slices: int,
-        filter_black_slices: bool = False,
-        stride: int = 1,
-        black_threshold: int = 1 / 16,
+        number_of_slices: int = 1,
+        slice_stride: int = 1,
+        crop_stride: int = 256,
+        crop_height: int = 256,
+        crop_width: int = 256,
         device: Union[str, torch.device] = "cuda",
     ):
         self.number_of_slices = number_of_slices
-        self.filter_black_slices = filter_black_slices
-        self.black_threshold = black_threshold
-        self.stride = stride
+        self.slice_stride = slice_stride
+        self.crop_stride = crop_stride
+        self.crop_height = crop_height
+        self.crop_width = crop_width
 
         self.neighbors_per_side = self.number_of_slices // 2
         self.device = device
@@ -31,44 +33,36 @@ class GenericSliceSelector:
         if self.number_of_slices % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")
 
-    def set_image_specs(self, input_max_pixel_value: int, **kwargs) -> None:
+    def set_image_specs(
+        self,
+        input_max_pixel_value: int,
+        image_height,
+        image_width,
+        **kwargs,
+    ) -> None:
         self.input_max_pixel_value = input_max_pixel_value
+        self.image_height = image_height
+        self.image_width = image_width
 
-    def is_black(self, slice: np.ndarray) -> bool:
-        if self.filter_black_slices:
-            return np.mean(slice) < self.black_threshold
-
-        return False
-
-    def select_all_nonblack(
+    def select_zslices(
         self, img: np.ndarray, img_path: pathlib.Path
     ) -> dict[pathlib.Path, list[dict[str, Any]]]:
-        """
-        Select all non-black z-slice samples efficiently by minimizing computation of slice averages.
-        """
-        black_zslices = set()
+
         zslice_groups = defaultdict(list)
 
         for z_index in range(
-            self.neighbors_per_side, img.shape[0] - self.neighbors_per_side, self.stride
+            self.neighbors_per_side,
+            img.shape[0] - self.neighbors_per_side,
+            self.slice_stride,
         ):
 
-            reject_slice = True
             selected_zslices = []
 
             for z_index_neigh in range(
                 z_index - self.neighbors_per_side,
                 z_index + self.neighbors_per_side + 1,
             ):
-                if z_index_neigh in black_zslices or self.is_black(img[z_index_neigh]):
-                    reject_slice = False
-                    black_zslices.add(z_index_neigh)
-                    break
-
                 selected_zslices.append(z_index_neigh)
-
-            if not reject_slice:
-                continue
 
             zslice_groups[img_path.parent].append(
                 {"file_path": img_path, "z_slices": selected_zslices}
@@ -128,14 +122,46 @@ class GenericSliceSelector:
             and len(target_slice) <= len(input_slice)
         )
 
+    def generate_crop_coords(self):
+        crop_coords = []
+        y_starts = list(
+            range(0, self.image_height - self.crop_stride + 1, self.crop_stride)
+        )
+        x_starts = list(
+            range(0, self.image_width - self.crop_stride + 1, self.crop_stride)
+        )
+        for y in y_starts:
+            for x in x_starts:
+                crop_coords.append(
+                    {
+                        "height_start": y,
+                        "height_end": y + self.crop_height,
+                        "width_start": x,
+                        "width_end": x + self.crop_width,
+                    }
+                )
+        return crop_coords
+
+    def set_crop_coords(self, data_slices: list[dict[str, Any]]):
+        data_crops = []
+        for sample_idx in range(len(data_slices)):
+            base_data = data_slices[sample_idx]
+            for crop in self.crop_coords:
+                data_crop = base_data.copy()
+                data_crop["crop_coords"] = crop
+                data_crops.append(data_crop)
+
+        return data_crops
+
     def __call__(
         self, img_paths: list[dict[str, pathlib.Path]]
     ) -> list[dict[str, Any]]:
 
+        self.crop_coords = self.generate_crop_coords()
         data_locations = []
 
         for img_path in img_paths:
-            z_slices_input = self.select_all_nonblack(
+            z_slices_input = self.select_zslices(
                 tifffile.imread(img_path["input_path"]).astype(np.float32)
                 / self.input_max_pixel_value,
                 img_path["input_path"],
@@ -144,11 +170,13 @@ class GenericSliceSelector:
             target_img = tifffile.imread(img_path["target_path"])
             target_img = (target_img != 0).astype(np.float32)
 
-            z_slices_target = self.select_all_nonblack(
+            z_slices_target = self.select_zslices(
                 target_img,
                 img_path["target_path"],
             )
 
             data_locations.append({"input": z_slices_input, "target": z_slices_target})
 
-        return self.select_symmetric_centered_overlapping_slices(data_locations)
+        return self.set_crop_coords(
+            self.select_symmetric_centered_overlapping_slices(data_locations)
+        )

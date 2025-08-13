@@ -32,9 +32,10 @@ class CellSlicetoSliceDataset(Dataset):
 
         self.data_paths = self.get_image_paths()
         image_specs = self.get_image_specs()
-        self.data_slices = image_selector.set_image_specs(**image_specs)
-        self.data_slices = image_selector(self.data_paths)
-        self.image_preprocessor = image_preprocessor.set_image_specs(**image_specs)
+        image_selector.set_image_specs(**image_specs)
+        self.data_crops = image_selector(self.data_paths)[:4_000] #2600
+        self.image_preprocessor = image_preprocessor
+        self.image_preprocessor.set_image_specs(**image_specs)
 
         self.split_data = False
 
@@ -65,21 +66,30 @@ class CellSlicetoSliceDataset(Dataset):
         return image_mask_pairs
 
     def get_image_specs(self) -> None:
-        """
-        Get the sample image specs.
-        """
 
         input_example = tifffile.imread(self.data_paths[0]["input_path"])
         target_example = tifffile.imread(self.data_paths[0]["target_path"])
+
+        if target_example.ndim == 2:
+            image_height, image_width = target_example.shape
+        elif target_example.ndim == 3:
+            image_height, image_width = (
+                target_example.shape[1],
+                target_example.shape[2],
+            )
+        else:
+            raise ValueError(f"Unexpected target shape: {target_example.shape}")
 
         return {
             "input_max_pixel_value": np.iinfo(input_example.dtype).max,
             "input_ndim": input_example.ndim,
             "target_ndim": target_example.ndim,
+            "image_height": image_height,
+            "image_width": image_width,
         }
 
     def __len__(self):
-        return len(self.data_slices)
+        return len(self.data_crops)
 
     @property
     def input_transform(self):
@@ -95,31 +105,38 @@ class CellSlicetoSliceDataset(Dataset):
             raise ValueError("The metadata are not defined.")
         return {
             "Metadata_Well": self.well,
-            "Metadata_Fov": self.fov,
+            "Metadata_FOV": self.fov,
             "Metadata_Patient": self.patient,
             "Metadata_Input_Slices": self.input_slices,
             "Metadata_Target_Slices": self.target_slices,
+            "Metadata_Crop_Coordinates": self.crop_coords,
             "Metadata_ID": self.id,
+            "Metadata_Dataset_ID": self.dataset_id,
+            "Metadata_Sample_ID": self.sample_id,
         }
 
     def __getitem__(self, _idx: int):
         """Returns input and target data pairs."""
 
-        self.input_path = self.data_slices[_idx]["input_path"]
-        self.target_path = self.data_slices[_idx]["target_path"]
+        self.dataset_id = _idx
+        self.input_path = self.data_crops[_idx]["input_path"]
+        self.target_path = self.data_crops[_idx]["target_path"]
         self.well, self.fov = str(self.input_path.parent).split("/")[-1].split("-")
-        self.input_slices = sorted(
-            self.data_slices[_idx]["input_slices"], reverse=False
-        )
+        self.input_slices = sorted(self.data_crops[_idx]["input_slices"], reverse=False)
         self.target_slices = sorted(
-            self.data_slices[_idx]["target_slices"], reverse=False
+            self.data_crops[_idx]["target_slices"], reverse=False
         )
+        self.crop_coords = self.data_crops[_idx]["crop_coords"]
 
         self.patient = str(self.input_path.parents[2]).split("/")[-1]
         input_slice_str = "".join(map(str, self.input_slices))
         target_slice_str = "".join(map(str, self.target_slices))
 
         self.id = f"{self.patient}{self.well}{self.fov}"
+
+        h0, h1 = self.crop_coords["height_start"], self.crop_coords["height_end"]
+        w0, w1 = self.crop_coords["width_start"], self.crop_coords["width_end"]
+        self.sample_id = f"{self.id}{input_slice_str}{target_slice_str}{h0}{h1}{w0}{w1}"
 
         # Ensure only the data for splitting is returned rather than loading each image
         if self.split_data:
@@ -142,6 +159,18 @@ class CellSlicetoSliceDataset(Dataset):
         )
         input_image = self.processing_data.pop("input_image")
         target_image = self.processing_data.pop("target_image")
+
+        input_image = input_image[
+            :,
+            self.crop_coords["height_start"] : self.crop_coords["height_end"],
+            self.crop_coords["width_start"] : self.crop_coords["width_end"],
+        ]
+
+        target_image = target_image[
+            :,
+            self.crop_coords["height_start"] : self.crop_coords["height_end"],
+            self.crop_coords["width_start"] : self.crop_coords["width_end"],
+        ]
 
         return {
             "input": input_image,

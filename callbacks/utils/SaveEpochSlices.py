@@ -1,6 +1,6 @@
 import pathlib
 import tempfile
-from typing import Any, Optional, Sequence, Union
+from typing import Optional
 
 import mlflow
 import numpy as np
@@ -10,82 +10,97 @@ import torch
 
 class SaveEpochSlices:
 
-    def __init__(
-        self, sampled_images: dict[str, dict[str, Any]], data_split: str
+    def __init__(self, image_dataset_idxs: list[int], data_split: str) -> None:
+
+        self.image_dataset_idxs = image_dataset_idxs
+        self.data_split = data_split
+        self.crop_key_order = ["height_start", "height_end", "width_start", "width_end"]
+
+    def save_image_mlflow(
+        self,
+        image: torch.Tensor,
+        save_image_path_folder: pathlib.Path,
+        image_filename: str,
     ) -> None:
 
-        self.sampled_images = sampled_images
-        self.data_split = data_split
-
-    def load_and_slice(
-        self,
-        image: np.ndarray,
-        slices: Optional[Union[slice, Sequence[int]]] = None,
-    ) -> np.ndarray:
-
-        if image.ndim == 2:
-            return image.copy()
-        elif image.ndim == 3:
-            if slices is None:
-                return image.copy()
-            return image[slices].copy()
-        else:
-            raise ValueError(f"Unsupported image dimensions: {image.shape}")
-
-    def save_image_mlflow(self, image: np.ndarray, image_path: pathlib.Path) -> None:
-        path_parts = list(image_path.relative_to(image_path.parents[3]).parts)
-        path_parts.remove("profiling_input_images")
-        mlflow_path = pathlib.Path(*path_parts)
-
         with tempfile.TemporaryDirectory() as tmp_dir:
-            save_path = pathlib.Path(tmp_dir) / image_path.name
+            save_path = pathlib.Path(tmp_dir) / image_filename
             tifffile.imwrite(save_path, image.astype(np.uint8))
 
-            mlflow.log_artifact(local_path=save_path, artifact_path=mlflow_path)
+            mlflow.log_artifact(
+                local_path=save_path, artifact_path=save_image_path_folder
+            )
 
     def save_image(
         self,
         image_path: pathlib.Path,
         image_type: str,
-        slice_groups: Optional[Sequence[Union[int, slice]]] = None,
+        image: torch.Tensor,
     ) -> None:
-        if slice_groups is None:
-            loop_iter = range(1)
-        else:
-            loop_iter = slice_groups
+        if not ((image > 0.0) & (image < 1.0)).any():
+            if image_type == "input":
+                raise ValueError("Pixels should be between 0 and 1 in the input image")
+            image = (image != 0).float()
 
-        image = tifffile.imread(image_path)
-        for slices_idx, slices in enumerate(loop_iter):
-            image_processed = self.load_and_slice(image=image, slices=slices)
+        image = (image * 255).byte().cpu().numpy()
 
-            if not np.any((image_processed > 0.0) & (image_processed < 1.0)):
-                if image_type == "input":
-                    raise ValueError(
-                        "Pixels should be between 0 and 1 in the input image"
-                    )
-                image_processed = image_processed != 0
+        input_slices_name = "_".join(map(str, self.metadata["Metadata_Input_Slices"]))
+        target_slices_name = "_".join(map(str, self.metadata["Metadata_Target_Slices"]))
 
-            image_processed *= 255
-            image_processed = image_processed.astype(np.uint8)
+        crop_name = "_".join(
+            str(self.metadata["Metadata_Crop_Coordinates"][k])
+            for k in self.crop_key_order
+        )
 
-            slice_image_path = image_path.with_name(
-                f"{slices_idx:02d}_{image_type}_{image_path.name}"
-            )
-            slice_image_path = (
-                slice_image_path.parent / self.data_split / slice_image_path.name
-            )
-            self.save_image_mlflow(image=image_processed, image_path=slice_image_path)
+        filename = (
+            f"{image_path.name}_{image_type}"
+            if image_type == "generated_prediction"
+            else image_path.name
+        )
 
-    def __call__(self, model: torch.nn.Module) -> None:
-        for metadata in self.sampled_images.values():
+        image_filename = f"{crop_name}__{filename}"
+
+        fov_well_name = image_path.parent.name
+        patient_name = image_path.parents[2].name
+
+        save_image_path_folder = pathlib.Path(
+            f"{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
+        )
+
+        self.save_image_mlflow(
+            image=image,
+            save_image_path_folder=save_image_path_folder,
+            image_filename=image_filename,
+        )
+
+    def predict_target(self, image: torch.Tensor, model: torch.nn.Module):
+        return model(image.unsqueeze(0)).squeeze(0)
+
+    def __call__(
+        self, dataset: torch.utils.data.Dataset, model: torch.nn.Module
+    ) -> None:
+        for sample_idx in self.image_dataset_idxs:
+            sample = dataset[sample_idx]
+            self.metadata = sample["metadata"]
+
             self.save_image(
-                image_path=metadata["input_path"],
+                image_path=sample["input_path"],
                 image_type="input",
-                slice_groups=metadata["Metadata_Input_Slices"],
+                image=sample["input"],
             )
 
             self.save_image(
-                image_path=metadata["target_path"],
+                image_path=sample["target_path"],
                 image_type="target",
-                slice_groups=metadata["Metadata_Target_Slices"],
+                image=sample["target"],
+            )
+
+            generated_prediction = self.predict_target(
+                image=sample["input"], model=model
+            )
+
+            self.save_image(
+                image_path=sample["target_path"],
+                image_type="target",
+                image=generated_prediction,
             )

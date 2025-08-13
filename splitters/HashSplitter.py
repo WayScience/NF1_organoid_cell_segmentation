@@ -3,7 +3,8 @@ from collections import defaultdict
 from typing import Tuple
 
 from farmhash import Fingerprint64
-from torch.utils.data import DataLoader, Dataset, Subset, default_collate
+from torch.utils.data import DataLoader, Dataset, Subset
+from datasets.dataset_00.utils.Collator import collator
 
 
 class HashSplitter:
@@ -14,46 +15,11 @@ class HashSplitter:
         train_frac: float = 0.8,
         val_frac: float = 0.1,
     ) -> None:
+        dataset.split_data = True
         self.dataset = dataset
         self.batch_size = batch_size
         self.train_frac = train_frac
         self.val_frac = val_frac
-
-    @staticmethod
-    def custom_collate_fn(batch):
-        """
-        Ensures that pathlib paths can be collated by the dataloader, and
-        ensures that other metadata consist of lists instead of pytorch tensors.
-        """
-        collated = {}
-        skip_collate_subkeys = {"Metadata_Input_Slices", "Metadata_Target_Slices"}
-
-        for key in batch[0]:
-            values = [d[key] for d in batch]
-
-            if isinstance(values[0], pathlib.Path):
-                collated[key] = values
-
-            elif key == "metadata":
-                metadata_collated = {}
-                for meta_key in values[0]:
-                    meta_values = [v[meta_key] for v in values]
-
-                    if meta_key in skip_collate_subkeys:
-                        # Convert tensors to lists here
-                        metadata_collated[meta_key] = [
-                            v.tolist() if hasattr(v, "tolist") else v
-                            for v in meta_values
-                        ]
-                    else:
-                        metadata_collated[meta_key] = default_collate(meta_values)
-
-                collated["metadata"] = metadata_collated
-
-            else:
-                collated[key] = default_collate(values)
-
-        return collated
 
     def __call__(self) -> Tuple[DataLoader, DataLoader, DataLoader]:
         divisor = 10**6
@@ -75,9 +41,10 @@ class HashSplitter:
                 Subset(self.dataset, indices),
                 batch_size=self.batch_size,
                 shuffle=shuffle,
-                collate_fn=self.custom_collate_fn,
+                collate_fn=collator,
             )
 
+        self.dataset.split_data = False
         return (
             make_loader(splits["train"], shuffle=True),
             make_loader(splits["val"], shuffle=False),
