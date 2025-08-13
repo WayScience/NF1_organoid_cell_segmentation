@@ -73,8 +73,8 @@ class ConfusionMetrics(AbstractMetric):
             else torch.tensor(0.0, device=self.device)
         )
 
-        key_precision = f"precision_{self.data_split_logging}"
-        key_recall = f"recall_{self.data_split_logging}"
+        key_precision = f"precision__{self.data_split_logging}"
+        key_recall = f"recall__{self.data_split_logging}"
 
         self.reset()
         return {key_precision: precision, key_recall: recall}

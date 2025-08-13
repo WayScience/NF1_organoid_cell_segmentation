@@ -28,7 +28,7 @@ class Callbacks:
             if "loss" in name and "component" not in name:
                 self.loss_value = loss_value
 
-            mlflow.log_metric(f"{data_split}_{name}", loss_value, step=time_step)
+            mlflow.log_metric(name, loss_value, step=time_step)
 
         if self.loss_value is None:
             raise ValueError(
@@ -37,7 +37,7 @@ class Callbacks:
 
         for metric in self.metrics:
             for name, metric_value in metric.get_metric_data().items():
-                mlflow.log_metric(f"{data_split}_{name}", metric_value, step=time_step)
+                mlflow.log_metric(name, metric_value, step=time_step)
 
     def _log_epoch_metrics(
         self,
@@ -66,7 +66,7 @@ class Callbacks:
                     self.loss(
                         generated_predictions=generated_predictions,
                         targets=samples["target"],
-                        data_split=data_split,
+                        data_split_logging=data_split,
                     )
 
         self._log_metrics(time_step=time_step, data_split=data_split)

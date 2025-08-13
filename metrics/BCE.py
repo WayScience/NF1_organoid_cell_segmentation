@@ -22,7 +22,6 @@ class BCE(AbstractMetric):
         super().__init__()
         self.is_loss = is_loss
         self.use_logits = use_logits
-        self.data_split_logging: Optional[str] = None
         self.device = device
 
         if self.is_loss:
