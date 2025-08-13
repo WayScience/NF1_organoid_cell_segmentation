@@ -33,7 +33,7 @@ class CellSlicetoSliceDataset(Dataset):
         self.data_paths = self.get_image_paths()
         image_specs = self.get_image_specs()
         image_selector.set_image_specs(**image_specs)
-        self.data_crops = image_selector(self.data_paths)[:4_000] #2600
+        self.data_crops = image_selector(self.data_paths)
         self.image_preprocessor = image_preprocessor
         self.image_preprocessor.set_image_specs(**image_specs)
 

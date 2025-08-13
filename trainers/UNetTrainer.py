@@ -96,7 +96,6 @@ class UNetTrainer:
                 train_data["callback_hook"] = "on_batch_end"
 
                 self.callbacks(**train_data)
-                break
 
             train_data["callback_hook"] = "on_epoch_end"
             train_data["continue_training"] = self.callbacks(
