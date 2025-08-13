@@ -53,7 +53,7 @@ class SaveEpochSlices:
         )
 
         filename = (
-            f"{image_path.name}_{image_type}"
+            f"{image_path.stem}__{image_type}{image_path.suffix}"
             if image_type == "generated_prediction"
             else image_path.name
         )
@@ -66,8 +66,6 @@ class SaveEpochSlices:
         save_image_path_folder = (
             f"{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
         )
-        # save_image_path_folder = pathlib.Path(f"{patient_name}/{fov_well_name}")
-        # save_image_path_folder = f"{patient_name}/{fov_well_name}"
 
         self.save_image_mlflow(
             image=image,
@@ -75,7 +73,9 @@ class SaveEpochSlices:
             image_filename=image_filename,
         )
 
-    def predict_target(self, image: torch.Tensor, model: torch.nn.Module):
+    def predict_target(
+        self, image: torch.Tensor, model: torch.nn.Module
+    ) -> torch.Tensor:
         return torch.sigmoid(model(image.unsqueeze(0)).squeeze(0))
 
     def __call__(
