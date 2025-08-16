@@ -91,8 +91,6 @@ class SaveEpochSlices:
             sample = dataset[sample_idx]
             self.metadata = sample["metadata"]
 
-            print(f"Max first: {torch.max(sample['target'])}")
-
             sample_image = self.save_image(
                 image_path=sample["target_path"],
                 image_type="target",

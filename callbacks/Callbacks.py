@@ -2,6 +2,8 @@ from typing import Any, List, Optional, Union
 
 import mlflow
 import torch
+from mlflow.models import ModelSignature
+from mlflow.models.signature import infer_signature
 from torch.amp import autocast
 from torch.nn import Module
 from torch.utils.data import DataLoader
@@ -72,7 +74,7 @@ class Callbacks:
         self._log_metrics(time_step=time_step, data_split=data_split)
 
     def _assess_early_stopping(
-        self, epoch: int, input_example: Module, model: Module, **kwargs
+        self, epoch: int, signature: ModelSignature, model: Module, **kwargs: Any
     ) -> bool:
         if self.best_loss_value > self.loss_value:
             self.best_loss_value = self.loss_value
@@ -80,8 +82,9 @@ class Callbacks:
 
             mlflow.pytorch.log_model(
                 model,
-                artifact_path="model",
-                input_example=input_example,
+                name="model",
+                signature=signature,
+                step=epoch,
             )
         else:
             self.early_stopping_counter += 1
@@ -90,6 +93,17 @@ class Callbacks:
                 mlflow.log_param("early_stopping_epoch", epoch)
                 return False
         return True
+
+    def _prepare_signature(
+        self, input_example: torch.Tensor, model: Module
+    ) -> ModelSignature:
+        model.eval()
+        with torch.no_grad():
+            output_example = model(input_example).detach().cpu().numpy()
+
+        input_numpy = input_example.detach().cpu().numpy().astype("float32")
+
+        return infer_signature(input_numpy, output_example)
 
     def _on_epoch_start(self, epoch: int, **kwargs) -> None:
         print(f"Starting epoch {epoch}")
@@ -127,14 +141,15 @@ class Callbacks:
             )
 
         val_sample = next(iter(val_dataloader))
-        val_sample = val_sample["input"].unsqueeze(0)
+        val_sample = val_sample["input"]
+        signature = self._prepare_signature(input_example=val_sample, model=model)
 
         return self._assess_early_stopping(
-            epoch=epoch, input_example=val_sample, model=model
+            epoch=epoch, signature=signature, model=model
         )
 
     def _on_batch_end(self, batch: int, **kwargs) -> None:
         pass
 
     def __call__(self, callback_hook: str, **kwargs) -> None:
-        getattr(self, f"_{callback_hook}")(**kwargs)
+        return getattr(self, f"_{callback_hook}")(**kwargs)

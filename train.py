@@ -2,6 +2,7 @@ import pathlib
 import random
 from typing import Any
 
+import joblib
 import mlflow
 import numpy as np
 import optuna
@@ -25,36 +26,67 @@ from trainers.UNetTrainer import UNetTrainer
 
 class OptimizationManager:
     """
-    For running optuna optimization studies.
+    Optuna objective function with MLflow logging.
     """
 
-    def __init__(self, trainer: Any, **trainer_kwargs):
-
+    def __init__(
+        self,
+        trainer: Any,
+        hash_splitter: Any,
+        dataset: Any,
+        callbacks_args: dict[str, Any],
+        **trainer_kwargs,
+    ):
         self.trainer = trainer
+        self.hash_splitter = hash_splitter
+        self.dataset = dataset
+        self.callbacks_args = callbacks_args
         self.trainer_kwargs = trainer_kwargs
 
     def __call__(self, trial):
+        batch_size = trial.suggest_int("batch_size", 1, 18)
+        lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
+
+        train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
+            batch_size=batch_size
+        )
+        self.trainer_kwargs["train_dataloader"] = train_dataloader
+        self.trainer_kwargs["val_dataloader"] = val_dataloader
+
         optimizer_params = {
             "params": self.trainer_kwargs["model"].parameters(),
-            "lr": trial.suggest_float("lr", 1e-5, 1e-2, log=True),
+            "lr": lr,
             "betas": (0.5, 0.999),
         }
 
-        with mlflow.start_run(nested=True, run_name=f"trial {trial.number}"):
+        loss = BCE(is_loss=True, use_logits=True, reduction="mean", device=device)
+
+        metrics = [
+            BCE(is_loss=False, use_logits=True, reduction="mean", device=device),
+            Dice(
+                use_logits=True, prediction_threshold=0.5, is_loss=False, device=device
+            ),
+            ConfusionMetrics(use_logits=True, prediction_threshold=0.5, device=device),
+        ]
+
+        with mlflow.start_run(nested=True, run_name=f"trial_{trial.number}"):
             optimizer = torch.optim.Adam(**optimizer_params)
             self.trainer_kwargs["model_optimizer"] = optimizer
+
             opt_params = optimizer.param_groups[0].copy()
-
             del opt_params["params"]
-            opt_params = {
-                f"optimizer_{opt_param_name}": opt_param
-                for opt_param_name, opt_param in opt_params.items()
-            }
-
-            mlflow.log_params(opt_params)
+            mlflow.log_params({f"optimizer_{k}": v for k, v in opt_params.items()})
+            mlflow.log_param("batch_size", batch_size)
             mlflow.set_tag("optimizer_class", optimizer.__class__.__name__.lower())
-            self.trainer(**self.trainer_kwargs)
-            self.trainer.train()
+
+            self.trainer_kwargs["callbacks"] = Callbacks(
+                **self.callbacks_args | {"metrics": metrics, "loss": loss}
+            )
+
+            trainer_obj = self.trainer(**self.trainer_kwargs | {"model_loss": loss})
+            trainer_obj.train()
+
+            return trainer_obj.best_loss_value
 
 
 # |%%--%%| <Twmb6mPjf5|sNNHe7R4s3>
@@ -110,8 +142,7 @@ Optimization of the first segmentation model with the following:
 """
 mlflow.set_tag("mlflow.note.content", description)
 
-
-# |%%--%%| <9NUAycuR83|cunSoruBAQ>
+# |%%--%%| <9NUAycuR83|muTDx2W917>
 
 img_selector = ImageSelector(
     number_of_slices=1,
@@ -130,95 +161,50 @@ img_dataset = CellSlicetoSliceDataset(
     image_preprocessor=image_preprocessor,
 )
 
-# |%%--%%| <cunSoruBAQ|gUtaBucbVw>
+# |%%--%%| <muTDx2W917|Ljn54YK9d8>
 
 hash_splitter = HashSplitter(
-    dataset=img_dataset, batch_size=10, train_frac=0.8, val_frac=0.1
+    dataset=img_dataset,
+    train_frac=0.8,
+    val_frac=0.1,
 )
 
-# |%%--%%| <gUtaBucbVw|H2ARqRccUc>
+# Batch size is arbitrary here, it is just to sample images, which won't change with batch_size
+_, val_dataloader, _ = hash_splitter(batch_size=10)
 
-train_dataloader, val_dataloader, test_dataloader = hash_splitter()
-
-# |%%--%%| <H2ARqRccUc|84VWoN8eUi>
-
-image_dataset_idxs = SampleImages(
-    dataloader=val_dataloader,
-    number_of_images=200,  # 35,
-)()
-
-# |%%--%%| <84VWoN8eUi|TjsS5lPUGF>
+image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=35)()
 
 image_saver = SaveEpochSlices(
     image_dataset_idxs=image_dataset_idxs, data_split="validation"
 )
 
-# |%%--%%| <TjsS5lPUGF|CNv30fImCD>
+# |%%--%%| <Ljn54YK9d8|sv6R19116h>
 
-loss = BCE(is_loss=True, use_logits=True, reduction="mean", device=device)
-metrics = [
-    BCE(is_loss=False, use_logits=True, reduction="mean", device=device),
-    Dice(use_logits=True, prediction_threshold=0.5, is_loss=False, device=device),
-    ConfusionMetrics(use_logits=True, prediction_threshold=0.5, device=device),
-]
+callbacks_args = {
+    "early_stopping_counter_threshold": 13,
+    "image_savers": image_saver,
+}
 
-callbacks = Callbacks(
-    metrics=metrics,
-    loss=loss,
-    early_stopping_counter_threshold=13,
-    image_savers=image_saver,
-)
-
-# |%%--%%| <CNv30fImCD|unwqdPi1Wn>
+# |%%--%%| <sv6R19116h|1ibSiDMEcz>
 
 unet = UNet(in_channels=1, out_channels=1).to(device)
 
-# |%%--%%| <unwqdPi1Wn|h3r11MNDxO>
+# |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
 
-optimizer_params = {
-    "params": unet.parameters(),
-    "lr": 1e-2,
-    "betas": (0.5, 0.999),
-}
-
-optimizer = torch.optim.Adam(**optimizer_params)
-
-# |%%--%%| <h3r11MNDxO|0Gkz2JJSt9>
-
-torch.cuda.empty_cache()
-
-# |%%--%%| <0Gkz2JJSt9|6ybuV3PiSm>
-
-trainer = UNetTrainer(
-    model=unet,
-    model_optimizer=optimizer,
-    model_loss=loss,
-    train_dataloader=train_dataloader,
-    val_dataloader=val_dataloader,
-    callbacks=callbacks,
-    epochs=2,
-    device="cuda",
-    use_amp=True,
-)
-trainer.train()
-
-# |%%--%%| <6ybuV3PiSm|mWPQQ5jFxo>
-
-"""
 optimization_manager = OptimizationManager(
     trainer=UNetTrainer,
-    trainer_kwargs={
-        "model": unet,
-        "model_loss": loss,
-        "train_dataloader": train_dataloader,
-        "val_dataloader": val_dataloader,
-        "image_postprocessor": image_postprocessor,
-        "callbacks": callbacks,
-        "epochs": 2,
-        "device": "cuda",
-    },
+    hash_splitter=hash_splitter,
+    dataset=img_dataset,
+    callbacks_args=callbacks_args,
+    model=unet,
+    epochs=100,
+    device=device,
 )
 
-study = optuna.create_study(direction="minimize")
-study.optimize(optimization_manager, n_trials=2)
-"""
+study = optuna.create_study(study_name="model_training", direction="minimize")
+study.optimize(optimization_manager, n_trials=10)
+
+# |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
+
+joblib.dump(study, "optuna_study.joblib")
+mlflow.log_artifact("optuna_study.joblib")

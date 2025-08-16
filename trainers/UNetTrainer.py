@@ -39,6 +39,10 @@ class UNetTrainer:
         else:
             self.scaler = None
 
+    @property
+    def best_loss_value(self):
+        return self.callbacks.best_loss_value
+
     def train(self) -> None:
         train_data = {}
         train_data["continue_training"] = True
