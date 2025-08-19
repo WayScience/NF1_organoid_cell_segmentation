@@ -172,7 +172,7 @@ hash_splitter = HashSplitter(
 # Batch size is arbitrary here, it is just to sample images, which won't change with batch_size
 _, val_dataloader, _ = hash_splitter(batch_size=10)
 
-image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=35)()
+image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=300)()
 
 image_saver = SaveEpochSlices(
     image_dataset_idxs=image_dataset_idxs, data_split="validation"
@@ -181,7 +181,7 @@ image_saver = SaveEpochSlices(
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
 
 callbacks_args = {
-    "early_stopping_counter_threshold": 13,
+    "early_stopping_counter_threshold": 3,
     "image_savers": image_saver,
 }
 
@@ -197,7 +197,7 @@ optimization_manager = OptimizationManager(
     dataset=img_dataset,
     callbacks_args=callbacks_args,
     model=unet,
-    epochs=100,
+    epochs=30,
     device=device,
 )
 
