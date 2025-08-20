@@ -20,7 +20,7 @@ These are the models developed in reverse chronological order:
 
 **Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
 
-> **Note:** Manually ended early because images weren't being saved
+> **Note:** Manually ended early because images weren't being saved <br>
 > **!!!Important:** Did not commit the collator, so this model will also need the collator committed later
 
 - **Architecture:** UNet Generator
