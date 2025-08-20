@@ -1,7 +1,7 @@
 [project]
 name = "nf1-organoid-cell-segmentation"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deep learning–based vision model for segmentation of cells within NF1 organoids."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
