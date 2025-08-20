@@ -16,11 +16,13 @@ All models will be trained with Experiment ID: 310992065458859481
 
 These are the models developed in reverse chronological order:
 
+---
+
+**Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
+
 > **Note:** Manually ended early because images weren't being saved
-> **Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
 > **!!!Important:** Did not commit the collator, so this model will also need the collator committed later
 
-### Model Details
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
@@ -28,3 +30,5 @@ These are the models developed in reverse chronological order:
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
+
+---
