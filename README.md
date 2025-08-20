@@ -21,7 +21,8 @@ These are the models developed in reverse chronological order:
 **Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
 
 > **Note:** Manually ended early because images weren't being saved <br>
-> **!!!Important:** Did not commit the collator, so this model will also need the collator committed later
+> **Important!!!** Did not commit the collator, so this model will also need the collator committed later <br>
+> **Important!!!** The pyproject.toml file and the uv.lock file were not included in this commit
 
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
