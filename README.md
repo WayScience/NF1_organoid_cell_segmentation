@@ -10,3 +10,21 @@ Each model's code is tracked within git's commit comment history. A trained mode
 ## Training a Model
 
 Each model is trained by executing `train.py` from the MLproject file so the results can be logged to MLflow. The paths inside `train.py` are needed to create the dataset for training the model.
+
+## Model Descriptions
+All models will be trained with Experiment ID: 310992065458859481
+
+These are the models developed in reverse chronological order:
+
+> **Note:** Manually ended early because images weren't being saved
+> **Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
+> **!!!Important:** Did not commit the collator, so this model will also need the collator committed later
+
+### Model Details
+- **Architecture:** UNet Generator
+- **Task:** One-to-One slice segmentation mask prediction
+- **QC / Filtering:** Does not perform any QC or filtering of images or slices
+- **Training Data:** Trained on all slices
+- **Preprocessing:**
+  - Each input slice is normalized
+  - Each input is padded to preserve dimensionality (height and width divisible by 16)
