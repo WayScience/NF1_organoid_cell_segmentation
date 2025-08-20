@@ -1,0 +1,26 @@
+[project]
+name = "nf1-organoid-cell-segmentation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "albumentations>=2.0.8",
+    "cityhash>=0.4.9",
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.3",
+    "mlflow>=3.2.0",
+    "nbconvert>=7.16.6",
+    "numpy>=2.3.1",
+    "optuna>=4.4.0",
+    "pynvim>=0.5.2",
+    "tifffile>=2025.6.11",
+    "torch>=2.7.1",
+]
+
+[project.scripts]
+nf1-organoid-cell-segmentation = "nf1_organoid_cell_segmentation:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
