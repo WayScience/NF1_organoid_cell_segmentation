@@ -9,7 +9,7 @@ import torch
 
 class ImageSelector:
     """
-    Selects the z-slices to be passed as input to the segmentation model.
+    Selects the z-slices and crops to be passed as input to the segmentation model.
     """
 
     def __init__(
@@ -70,11 +70,14 @@ class ImageSelector:
 
         return zslice_groups
 
-    def select_symmetric_centered_overlapping_slices(
+    def filter_symmetric_centered_overlapping_slices(
         self,
         data_locations: list[dict[str, dict[pathlib.Path, dict[str, Any]]]],
     ) -> list[dict[str, Any]]:
-        """Selects overlapping z-slices from input and target images."""
+        """
+        Filters by overlap and symmetry of z-slices from input and target images.
+        """
+
         overlapping_data = []
 
         for locations in data_locations:
@@ -123,6 +126,10 @@ class ImageSelector:
         )
 
     def generate_crop_coords(self):
+        """
+        Naive crop selection
+        """
+
         crop_coords = []
         y_starts = list(
             range(0, self.image_height - self.crop_stride + 1, self.crop_stride)
@@ -178,5 +185,5 @@ class ImageSelector:
             data_locations.append({"input": z_slices_input, "target": z_slices_target})
 
         return self.set_crop_coords(
-            self.select_symmetric_centered_overlapping_slices(data_locations)
+            self.filter_symmetric_centered_overlapping_slices(data_locations)
         )

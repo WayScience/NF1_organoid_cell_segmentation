@@ -1,6 +1,6 @@
 import pathlib
 import tempfile
-from typing import Optional
+from typing import Any, Optional
 
 import mlflow
 import numpy as np
@@ -9,12 +9,21 @@ import torch
 
 
 class SaveEpochSlices:
+    """
+    Saves image crops containing multiple slices
+    """
 
-    def __init__(self, image_dataset_idxs: list[int], data_split: str) -> None:
+    def __init__(
+        self,
+        image_dataset_idxs: list[int],
+        data_split: str,
+        image_postprocessor: Any = lambda x: x,
+    ) -> None:
 
         self.image_dataset_idxs = image_dataset_idxs
         self.data_split = data_split
         self.crop_key_order = ["height_start", "height_end", "width_start", "width_end"]
+        self.image_postprocessor = image_postprocessor
 
     def save_image_mlflow(
         self,
@@ -36,7 +45,7 @@ class SaveEpochSlices:
         image_path: pathlib.Path,
         image_type: str,
         image: torch.Tensor,
-    ) -> None:
+    ) -> bool:
         if not ((image > 0.0) & (image < 1.0)).any():
             if image_type == "input":
                 raise ValueError("Pixels should be between 0 and 1 in the input image")
@@ -46,6 +55,7 @@ class SaveEpochSlices:
 
         image = (image * 255).byte().cpu().numpy()
 
+        # Black segmentation masks will not be saved
         if np.max(image) == 0:
             return False
 
@@ -81,7 +91,7 @@ class SaveEpochSlices:
     def predict_target(
         self, image: torch.Tensor, model: torch.nn.Module
     ) -> torch.Tensor:
-        return torch.sigmoid(model(image.unsqueeze(0)).squeeze(0))
+        return self.image_postprocessor(model(image.unsqueeze(0)).squeeze(0))
 
     def __call__(
         self, dataset: torch.utils.data.Dataset, model: torch.nn.Module, epoch: int
@@ -97,6 +107,7 @@ class SaveEpochSlices:
                 image=sample["target"],
             )
 
+            # Only save these images if the segmentation mask isn't black
             if sample_image:
                 self.save_image(
                     image_path=sample["input_path"],

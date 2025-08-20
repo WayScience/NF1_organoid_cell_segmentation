@@ -9,6 +9,10 @@ from datasets.dataset_00.utils.Collator import collator
 
 
 class HashSplitter:
+    """
+    Create datasplits by hashing sample metadata IDs
+    """
+
     def __init__(
         self,
         dataset: Dataset,

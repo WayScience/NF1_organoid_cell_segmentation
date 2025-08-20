@@ -41,6 +41,9 @@ class Conv(nn.Module):
 
 
 class DoubleConv(nn.Module):
+    """
+    Can be used in both the encoder and decoder of a unet
+    """
     def __init__(
         self,
         normalization: nn.Module,

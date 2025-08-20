@@ -6,6 +6,10 @@ import torch.nn.functional as F
 
 
 class ImagePreProcessor:
+    """
+    Processes the image prior to model training and inferencing
+    """
+
     def __init__(
         self,
         pad_to_multiple: int,

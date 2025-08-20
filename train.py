@@ -12,6 +12,7 @@ from callbacks.Callbacks import Callbacks
 from callbacks.utils.SampleImages import SampleImages
 from callbacks.utils.SaveEpochSlices import SaveEpochSlices
 from datasets.dataset_00.CellSlicetoSliceDataset import CellSlicetoSliceDataset
+from datasets.dataset_00.utils.ImagePostProcessor import ImagePostProcessor
 from datasets.dataset_00.utils.ImagePreProcessor import ImagePreProcessor
 from datasets.dataset_00.utils.ImageSelector import ImageSelector
 from metrics.BCE import BCE
@@ -59,14 +60,14 @@ class OptimizationManager:
             "betas": (0.5, 0.999),
         }
 
-        loss = BCE(is_loss=True, use_logits=True, reduction="mean", device=device)
+        loss = BCE(is_loss=True, use_logits=False, reduction="mean", device=device)
 
         metrics = [
-            BCE(is_loss=False, use_logits=True, reduction="mean", device=device),
+            BCE(is_loss=False, use_logits=False, reduction="mean", device=device),
             Dice(
-                use_logits=True, prediction_threshold=0.5, is_loss=False, device=device
+                use_logits=False, prediction_threshold=0.5, is_loss=False, device=device
             ),
-            ConfusionMetrics(use_logits=True, prediction_threshold=0.5, device=device),
+            ConfusionMetrics(use_logits=False, prediction_threshold=0.5, device=device),
         ]
 
         with mlflow.start_run(nested=True, run_name=f"trial_{trial.number}"):
@@ -153,6 +154,7 @@ img_selector = ImageSelector(
     device=device,
 )
 image_preprocessor = ImagePreProcessor(pad_to_multiple=16, device=device)
+image_postprocessor = ImagePostProcessor()
 
 img_dataset = CellSlicetoSliceDataset(
     root_data_path=root_data_path,
@@ -175,7 +177,9 @@ _, val_dataloader, _ = hash_splitter(batch_size=10)
 image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=300)()
 
 image_saver = SaveEpochSlices(
-    image_dataset_idxs=image_dataset_idxs, data_split="validation"
+    image_dataset_idxs=image_dataset_idxs,
+    data_split="validation",
+    image_postprocessor=image_postprocessor,
 )
 
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
@@ -183,6 +187,7 @@ image_saver = SaveEpochSlices(
 callbacks_args = {
     "early_stopping_counter_threshold": 3,
     "image_savers": image_saver,
+    "image_postprocessor": image_postprocessor,
 }
 
 # |%%--%%| <sv6R19116h|1ibSiDMEcz>
@@ -197,6 +202,7 @@ optimization_manager = OptimizationManager(
     dataset=img_dataset,
     callbacks_args=callbacks_args,
     model=unet,
+    image_postprocessor=image_postprocessor,
     epochs=30,
     device=device,
 )

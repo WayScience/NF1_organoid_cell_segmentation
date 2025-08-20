@@ -17,7 +17,7 @@ class Dice(AbstractMetric):
         use_logits: bool = True,
         prediction_threshold=0.5,
         is_loss: bool = False,
-        device: str = "cuda",
+        device: Union[str, torch.device] = "cuda",
     ):
         super().__init__()
         self.smooth = smooth
@@ -40,6 +40,9 @@ class Dice(AbstractMetric):
         data_split_logging: Optional[str] = None,
         **kwargs,
     ) -> dict[str, torch.Tensor] | None:
+        """
+        data_split_logging should not be defined if computing the loss for backpropagation
+        """
 
         if generated_predictions.shape != targets.shape:
             raise ValueError(

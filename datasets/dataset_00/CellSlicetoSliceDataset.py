@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 class CellSlicetoSliceDataset(Dataset):
     """
     Iterable Slice Dataset for brightfield and masked Images,
-    which supports applying transformations to the inputs and targets.
+    which support image selection and preprocessing.
     """
 
     def __init__(
@@ -118,7 +118,9 @@ class CellSlicetoSliceDataset(Dataset):
     def __getitem__(self, _idx: int):
         """Returns input and target data pairs."""
 
+        # For easier retrieval of image data once sampled
         self.dataset_id = _idx
+
         self.input_path = self.data_crops[_idx]["input_path"]
         self.target_path = self.data_crops[_idx]["target_path"]
         self.well, self.fov = str(self.input_path.parent).split("/")[-1].split("-")
@@ -132,8 +134,11 @@ class CellSlicetoSliceDataset(Dataset):
         input_slice_str = "".join(map(str, self.input_slices))
         target_slice_str = "".join(map(str, self.target_slices))
 
+        # For splitting image data
+        # Ensures each fov belongs to a different split
         self.id = f"{self.patient}{self.well}{self.fov}"
 
+        # For sampling images per epoch
         h0, h1 = self.crop_coords["height_start"], self.crop_coords["height_end"]
         w0, w1 = self.crop_coords["width_start"], self.crop_coords["width_end"]
         self.sample_id = f"{self.id}{input_slice_str}{target_slice_str}{h0}{h1}{w0}{w1}"
@@ -160,6 +165,7 @@ class CellSlicetoSliceDataset(Dataset):
         input_image = self.processing_data.pop("input_image")
         target_image = self.processing_data.pop("target_image")
 
+        # Three dimensions are expected for both the input and target images
         input_image = input_image[
             :,
             self.crop_coords["height_start"] : self.crop_coords["height_end"],

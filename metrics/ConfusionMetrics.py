@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 
@@ -15,7 +15,7 @@ class ConfusionMetrics(AbstractMetric):
         self,
         prediction_threshold: float = 0.5,
         use_logits: bool = True,
-        device: str = "cuda",
+        device: Union[str, torch.device] = "cuda",
     ):
         super().__init__()
         self.prediction_threshold = prediction_threshold

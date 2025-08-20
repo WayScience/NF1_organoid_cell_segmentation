@@ -6,6 +6,12 @@ from .UNetLayers import Conv, DoubleConv, OutConv, UpConv
 
 
 class UNet(nn.Module):
+    """
+    Relies on the following properties to be satisfied:
+    - Image height mod 16 = 0
+    - Image width mod 16 = 0
+    """
+
     def __init__(
         self,
         in_channels: int,

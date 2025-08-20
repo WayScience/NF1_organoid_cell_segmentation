@@ -19,8 +19,9 @@ class UNetTrainer:
         train_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         val_dataloader: Union[torch.utils.data.Dataset, DataLoader],
         callbacks: Any,
+        image_postprocessor: Any = lambda x: x,
         epochs: int = 10,
-        device: str = "cuda",
+        device: Union[str, torch.device] = "cuda",
         use_amp: bool = True,
     ) -> None:
 
@@ -30,9 +31,10 @@ class UNetTrainer:
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.callbacks = callbacks
+        self.image_postprocessor = image_postprocessor
         self.epochs = epochs
         self.device = device
-        self.use_amp = use_amp
+        self.use_amp = use_amp  # Automatic Mixed Precision (AMP)
 
         if self.use_amp and self.device.startswith("cuda"):
             self.scaler = torch.amp.GradScaler("cuda")
@@ -72,16 +74,18 @@ class UNetTrainer:
 
                 if self.use_amp and self.scaler is not None:
                     with torch.amp.autocast("cuda"):
-                        generated_predictions = self.model(inputs)
+                        generated_predictions = self.image_postprocessor(
+                            self.model(inputs)
+                        )
                         loss = self.model_loss(
                             targets=targets,
                             generated_predictions=generated_predictions,
                         )
                 else:
-                    generated_predictions = self.model(inputs)
+                    generated_predictions = self.image_postprocessor(self.model(inputs))
                     loss = self.model_loss(
-                        _targets=targets,
-                        _generated_predictions=generated_predictions,
+                        targets=targets,
+                        generated_predictions=generated_predictions,
                     )
 
                 train_data["generated_predictions"] = generated_predictions

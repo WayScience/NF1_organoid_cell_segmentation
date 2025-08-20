@@ -10,23 +10,35 @@ from torch.utils.data import DataLoader
 
 
 class Callbacks:
+    """
+    Triggered at certain points during model training according to the callback hook.
+    """
+
     def __init__(
         self,
         metrics: List,
         loss: Module,
         early_stopping_counter_threshold: int,
         image_savers: Optional[Union[Any, List[Any]]] = None,
+        image_postprocessor: Any = lambda x: x,
     ):
         self.metrics = metrics
         self.loss = loss
         self.early_stopping_counter_threshold = early_stopping_counter_threshold
         self.image_savers = image_savers
-        self.best_loss_value = float("inf")
+        self.image_postprocessor = image_postprocessor
+        self.best_loss_value = float("inf")  # We always want to minimize the loss
         self.early_stopping_counter = 0
         self.loss_value = None
 
-    def _log_metrics(self, time_step: int, data_split: str):
+    def _log_metrics(self, time_step: int):
+        """
+        Log metrics at an predefined time step (including components of metrics)
+        """
+
         for name, loss_value in self.loss.get_metric_data().items():
+
+            # Stores the loss value to assess if training should stop early
             if "loss" in name and "component" not in name:
                 self.loss_value = loss_value
 
@@ -47,7 +59,7 @@ class Callbacks:
         model: Module,
         dataloader: DataLoader,
         data_split: str,
-        device: str,
+        device: Union[str, torch.device] = "cuda",
         **kwargs,
     ) -> None:
 
@@ -56,7 +68,9 @@ class Callbacks:
         with torch.no_grad():
             with autocast(enabled=kwargs["use_amp"], device_type=device):
                 for samples in dataloader:
-                    generated_predictions = model(samples["input"])
+                    generated_predictions = self.image_postprocessor(
+                        model(samples["input"])
+                    )
 
                     for metric in self.metrics:
                         metric(
@@ -71,10 +85,10 @@ class Callbacks:
                         data_split_logging=data_split,
                     )
 
-        self._log_metrics(time_step=time_step, data_split=data_split)
+        self._log_metrics(time_step=time_step)
 
     def _assess_early_stopping(
-        self, epoch: int, signature: ModelSignature, model: Module, **kwargs: Any
+        self, epoch: int, signature: ModelSignature, model: Module, **kwargs
     ) -> bool:
         if self.best_loss_value > self.loss_value:
             self.best_loss_value = self.loss_value
@@ -99,7 +113,9 @@ class Callbacks:
     ) -> ModelSignature:
         model.eval()
         with torch.no_grad():
-            output_example = model(input_example).detach().cpu().numpy()
+            output_example = (
+                self.image_postprocessor(model(input_example)).detach().cpu().numpy()
+            )
 
         input_numpy = input_example.detach().cpu().numpy().astype("float32")
 
@@ -117,7 +133,7 @@ class Callbacks:
         model: Module,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader,
-        device: str,
+        device: Union[str, torch.device] = "cuda",
         **kwargs,
     ) -> None:
 
@@ -135,6 +151,7 @@ class Callbacks:
                 **kwargs,
             )
 
+        # Images can be saved in different ways if desired in the future
         if self.image_savers is not None and not isinstance(self.image_savers, list):
             self.image_savers(
                 dataset=val_dataloader.dataset.dataset, model=model, epoch=epoch
@@ -152,4 +169,7 @@ class Callbacks:
         pass
 
     def __call__(self, callback_hook: str, **kwargs) -> None:
+        """
+        Must return to possibly stop model training early
+        """
         return getattr(self, f"_{callback_hook}")(**kwargs)
