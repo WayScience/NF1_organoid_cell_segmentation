@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 
-class ImagePreProcessor:
+class ImagePostProcessor:
     """
     Processes generated predictions computed from the model.
     """
