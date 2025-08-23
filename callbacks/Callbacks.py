@@ -66,18 +66,9 @@ class Callbacks:
         model.eval()
 
         with torch.no_grad():
-            with autocast(enabled=kwargs["use_amp"], device_type=device):
-                for samples in dataloader:
-                    generated_predictions = self.image_postprocessor(
-                        model(samples["input"])
-                    )
-
-                    for metric in self.metrics:
-                        metric(
-                            generated_predictions=generated_predictions,
-                            targets=samples["target"],
-                            data_split_logging=data_split,
-                        )
+            for samples in dataloader:
+                with autocast(enabled=kwargs["use_amp"], device_type=device):
+                    generated_predictions = model(samples["input"])
 
                     self.loss(
                         generated_predictions=generated_predictions,
@@ -85,7 +76,18 @@ class Callbacks:
                         data_split_logging=data_split,
                     )
 
-        self._log_metrics(time_step=time_step)
+                generated_predictions = self.image_postprocessor(
+                    model(samples["input"])
+                )
+
+                for metric in self.metrics:
+                    metric(
+                        generated_predictions=generated_predictions,
+                        targets=samples["target"],
+                        data_split_logging=data_split,
+                    )
+
+            self._log_metrics(time_step=time_step)
 
     def _assess_early_stopping(
         self, epoch: int, signature: ModelSignature, model: Module, **kwargs
