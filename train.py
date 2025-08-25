@@ -60,7 +60,7 @@ class OptimizationManager:
             "betas": (0.5, 0.999),
         }
 
-        loss = BCE(is_loss=True, use_logits=False, reduction="mean", device=device)
+        loss = BCE(is_loss=True, use_logits=True, reduction="mean", device=device)
 
         metrics = [
             BCE(is_loss=False, use_logits=False, reduction="mean", device=device),
@@ -202,13 +202,12 @@ optimization_manager = OptimizationManager(
     dataset=img_dataset,
     callbacks_args=callbacks_args,
     model=unet,
-    image_postprocessor=image_postprocessor,
     epochs=30,
     device=device,
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
-study.optimize(optimization_manager, n_trials=10)
+study.optimize(optimization_manager, n_trials=3)
 
 # |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
 
