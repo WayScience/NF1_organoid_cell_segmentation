@@ -18,6 +18,36 @@ These are the models developed in reverse chronological order:
 
 ---
 
+**Commit:** `b9c5ab4af0ef5db82f3575988d3e9eaeb891bd98`
+
+> **Important!!!** The computer crashed during this run due to a device-side CUDA error <br>
+> **Note:** The first two sub-runs completed without error
+
+- **Architecture:** UNet Generator
+- **Task:** One-to-One slice segmentation mask prediction
+- **QC / Filtering:** Does not perform any QC or filtering of images or slices
+- **Training Data:** Trained on all slices
+- **Preprocessing:**
+  - Each input slice is normalized
+  - Each input is padded to preserve dimensionality (height and width divisible by 16)
+
+---
+
+**Commit:** `d993cd928bb181fd723d9be4bd8f28ff87ec14a0`
+
+> **Important!!!** The pyproject.toml file and the uv.lock file were not included in this commit <br>
+> **Important!!!** The computer crashed during this run
+
+- **Architecture:** UNet Generator
+- **Task:** One-to-One slice segmentation mask prediction
+- **QC / Filtering:** Does not perform any QC or filtering of images or slices
+- **Training Data:** Trained on all slices
+- **Preprocessing:**
+  - Each input slice is normalized
+  - Each input is padded to preserve dimensionality (height and width divisible by 16)
+
+---
+
 **Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414`
 
 > **Note:** Manually ended early because images weren't being saved <br>
