@@ -60,10 +60,16 @@ class OptimizationManager:
             "betas": (0.5, 0.999),
         }
 
-        loss = BCE(is_loss=True, use_logits=True, reduction="mean", device=device)
+        loss_trainer = BCE(
+            is_loss=True, use_logits=True, reduction="mean", device=device
+        )
+
+        # We do not care about the gradient stability when evaluating performance
+        loss_callbacks = BCE(
+            is_loss=True, use_logits=True, reduction="mean", device=device
+        )
 
         metrics = [
-            BCE(is_loss=False, use_logits=False, reduction="mean", device=device),
             Dice(
                 use_logits=False, prediction_threshold=0.5, is_loss=False, device=device
             ),
@@ -81,10 +87,12 @@ class OptimizationManager:
             mlflow.set_tag("optimizer_class", optimizer.__class__.__name__.lower())
 
             self.trainer_kwargs["callbacks"] = Callbacks(
-                **self.callbacks_args | {"metrics": metrics, "loss": loss}
+                **self.callbacks_args | {"metrics": metrics, "loss": loss_callbacks}
             )
 
-            trainer_obj = self.trainer(**self.trainer_kwargs | {"model_loss": loss})
+            trainer_obj = self.trainer(
+                **self.trainer_kwargs | {"model_loss": loss_trainer}
+            )
             trainer_obj.train()
 
             return trainer_obj.best_loss_value
