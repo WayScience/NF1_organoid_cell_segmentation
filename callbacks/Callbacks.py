@@ -31,6 +31,12 @@ class Callbacks:
         self.early_stopping_counter = 0
         self.loss_value = None
 
+        if any(not metric.use_logits for metric in [*metrics, loss]):
+            self.compute_sigmoid = True
+
+        else:
+            self.compute_sigmoid = False
+
     def _log_metrics(self, time_step: int):
         """
         Log metrics at an predefined time step (including components of metrics)
@@ -69,23 +75,33 @@ class Callbacks:
             for samples in dataloader:
                 with autocast(enabled=kwargs["use_amp"], device_type=device):
                     generated_predictions = model(samples["input"])
+                    sigmoid_generated_predictions = generated_predictions.clone()
+
+                    if self.compute_sigmoid:
+                        sigmoid_generated_predictions = self.image_postprocessor(
+                            generated_predictions
+                        )
 
                     self.loss(
-                        generated_predictions=generated_predictions,
+                        generated_predictions=(
+                            generated_predictions
+                            if self.loss.use_logits
+                            else sigmoid_generated_predictions
+                        ),
                         targets=samples["target"],
                         data_split_logging=data_split,
                     )
 
-                generated_predictions = self.image_postprocessor(
-                    model(samples["input"])
-                )
-
-                for metric in self.metrics:
-                    metric(
-                        generated_predictions=generated_predictions,
-                        targets=samples["target"],
-                        data_split_logging=data_split,
-                    )
+                    for metric in self.metrics:
+                        metric(
+                            generated_predictions=(
+                                generated_predictions
+                                if metric.use_logits
+                                else sigmoid_generated_predictions
+                            ),
+                            targets=samples["target"],
+                            data_split_logging=data_split,
+                        )
 
             self._log_metrics(time_step=time_step)
 
