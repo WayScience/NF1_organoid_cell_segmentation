@@ -128,7 +128,7 @@ r"""°°°
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
 root_data_path = root_dir / "big_drive/NF1_organoid_processed_patients"
-patient_folders = [[p for p in root_data_path.iterdir() if p.is_dir()]]
+patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
 
@@ -193,7 +193,7 @@ image_saver = SaveEpochSlices(
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
 
 callbacks_args = {
-    "early_stopping_counter_threshold": 3,
+    "early_stopping_counter_threshold": 5,
     "image_savers": image_saver,
     "image_postprocessor": image_postprocessor,
 }
@@ -215,7 +215,7 @@ optimization_manager = OptimizationManager(
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
-study.optimize(optimization_manager, n_trials=3)
+study.optimize(optimization_manager, n_trials=6)
 
 # |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
 
