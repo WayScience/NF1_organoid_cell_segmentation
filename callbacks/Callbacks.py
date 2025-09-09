@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 class Callbacks:
     """
     Triggered at certain points during model training according to the callback hook.
+    Most of the logic is implemented in the _on_epoch_end function. Please see this function for more details.
     """
 
     def __init__(
@@ -129,6 +130,10 @@ class Callbacks:
     def _prepare_signature(
         self, input_example: torch.Tensor, model: Module
     ) -> ModelSignature:
+        """
+        To allow the model to be saved
+        """
+
         model.eval()
         with torch.no_grad():
             output_example = (
@@ -154,6 +159,9 @@ class Callbacks:
         device: Union[str, torch.device] = "cuda",
         **kwargs,
     ) -> None:
+        """
+        Logs metrics, determines if training should be stopped early, and saves the model.
+        """
 
         for data_split, dataloader in [
             ("train", train_dataloader),

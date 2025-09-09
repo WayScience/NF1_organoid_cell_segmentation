@@ -32,6 +32,13 @@ class ImagePreProcessor:
     def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
         """
         Formats an image base on the number of image dimensions.
+        img can be either of the following dimensions:
+        (Z, H, W)
+        (H, W)
+        where:
+        Z: Number of Z-slices
+        H: Height of the image (in pixels)
+        W: Width of the image (in pixels)
         """
 
         if img_dims == 2:
@@ -50,6 +57,15 @@ class ImagePreProcessor:
     def __call__(
         self, input_img: np.ndarray, target_img: np.ndarray = None
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Tuple[int, int, int, int]]:
+        """
+        Both images can be either of the following dimensions:
+        (Z, H, W)
+        (H, W)
+        where:
+        Z: Number of Z-slices
+        H: Height of the image (in pixels)
+        W: Width of the image (in pixels)
+        """
 
         if self.input_transform is not None:
             input_img = self.input_transform(image=input_img)["image"]

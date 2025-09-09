@@ -47,6 +47,12 @@ class ImageSelector:
     def select_zslices(
         self, img: np.ndarray, img_path: pathlib.Path
     ) -> dict[pathlib.Path, list[dict[str, Any]]]:
+        """
+        Expects image of shape: (Z, H, W)
+        Z -> Number of Z slices
+        H -> Image Height
+        W -> Image Width
+        """
 
         zslice_groups = defaultdict(list)
 
@@ -103,8 +109,18 @@ class ImageSelector:
 
     @staticmethod
     def _has_centered_symmetric_overlap(
-        target_slice: list[int], input_slice: list[int]
+        target_slices: list[int], input_slices: list[int]
     ) -> bool:
+        """
+        Determines if the target and input slice are symmetric, and
+        if the target slices are centered with the input slices, where
+        number of target slices <= number of input slices.
+
+        We may care about inferencing on slices present in the target image
+        that are not present in the input image because a cell may span
+        multiple slices. Therefore, the model may leverage this this information
+        to potentially improve segmentation performance.
+        """
 
         def is_symmetric(slices: list[int]) -> bool:
             if len(slices) % 2 == 0:
@@ -118,11 +134,11 @@ class ImageSelector:
             return left == expected_left and right == expected_right
 
         return (
-            is_symmetric(target_slice)
-            and is_symmetric(input_slice)
-            and target_slice[len(target_slice) // 2]
-            == input_slice[len(input_slice) // 2]
-            and len(target_slice) <= len(input_slice)
+            is_symmetric(target_slices)
+            and is_symmetric(input_slices)
+            and target_slices[len(target_slices) // 2]
+            == input_slices[len(input_slices) // 2]
+            and len(target_slices) <= len(input_slices)
         )
 
     def generate_crop_coords(self):
@@ -163,6 +179,9 @@ class ImageSelector:
     def __call__(
         self, img_paths: list[dict[str, pathlib.Path]]
     ) -> list[dict[str, Any]]:
+        """
+        Orchestrates image, z-slice, and crop selection
+        """
 
         self.crop_coords = self.generate_crop_coords()
         data_locations = []

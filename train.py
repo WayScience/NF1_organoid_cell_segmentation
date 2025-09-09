@@ -128,7 +128,7 @@ r"""°°°
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
 root_data_path = root_dir / "big_drive/NF1_organoid_processed_patients"
-patient_folders = [[p for p in root_data_path.iterdir() if root_data_path.is_dir()][0]]
+patient_folders = [[p for p in root_data_path.iterdir() if p.is_dir()]]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
 
@@ -200,7 +200,7 @@ callbacks_args = {
 
 # |%%--%%| <sv6R19116h|1ibSiDMEcz>
 
-unet = UNet(in_channels=1, out_channels=1).to(device)
+unet = UNet(in_channels=1, out_channels=1)
 
 # |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
 

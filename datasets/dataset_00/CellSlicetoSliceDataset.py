@@ -21,14 +21,9 @@ class CellSlicetoSliceDataset(Dataset):
         patient_folders: list[str],
         image_selector: Any,
         image_preprocessor: Any,
-        input_transform: Optional[ImageOnlyTransform] = None,
-        target_transform: Optional[ImageOnlyTransform] = None,
     ):
         self.root_data_path = root_data_path
         self.patient_folders = patient_folders
-
-        self.__input_transform = input_transform
-        self.__target_transform = target_transform
 
         self.data_paths = self.get_image_paths()
         image_specs = self.get_image_specs()
@@ -90,14 +85,6 @@ class CellSlicetoSliceDataset(Dataset):
 
     def __len__(self):
         return len(self.data_crops)
-
-    @property
-    def input_transform(self):
-        return self.__input_transform
-
-    @property
-    def target_transform(self):
-        return self.__target_transform
 
     @property
     def metadata(self):
