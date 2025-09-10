@@ -24,7 +24,7 @@ These are the models developed in reverse chronological order:
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Training Data:** Trained on all slices
+- **Data:** Trained and evaluated on all slices of patient NF0016
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
@@ -40,7 +40,7 @@ These are the models developed in reverse chronological order:
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Training Data:** Trained on all slices
+- **Data:** Trained and evaluated on all slices of patient NF0016
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
@@ -56,7 +56,7 @@ These are the models developed in reverse chronological order:
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Training Data:** Trained on all slices
+- **Data:** Trained and evaluated on all slices of patient NF0016
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
@@ -73,7 +73,7 @@ These are the models developed in reverse chronological order:
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Training Data:** Trained on all slices
+- **Data:** Trained and evaluated on all slices of patient NF0016
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
