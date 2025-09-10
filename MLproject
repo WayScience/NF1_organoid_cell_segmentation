@@ -1,0 +1,5 @@
+name: cell_segmentation_gff
+
+entry_points:
+  train_model:
+    command: "python3 train.py"
