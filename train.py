@@ -154,11 +154,11 @@ mlflow.set_tag("mlflow.note.content", description)
 # |%%--%%| <9NUAycuR83|muTDx2W917>
 
 img_selector = ImageSelector(
-    number_of_slices=1,
+    number_of_slices=3,
     slice_stride=1,
-    crop_stride=256,
-    crop_height=256,
-    crop_width=256,
+    crop_stride=512,
+    crop_height=512,
+    crop_width=512,
     device=device,
 )
 image_preprocessor = ImagePreProcessor(device=device)
@@ -200,7 +200,7 @@ callbacks_args = {
 
 # |%%--%%| <sv6R19116h|1ibSiDMEcz>
 
-unet = UNet(in_channels=1, out_channels=1)
+unet = UNet(in_channels=3, out_channels=1)
 
 # |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
 
