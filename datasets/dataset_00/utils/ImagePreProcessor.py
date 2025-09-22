@@ -12,12 +12,10 @@ class ImagePreProcessor:
 
     def __init__(
         self,
-        pad_to_multiple: int,
         device: str = "cuda",
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
     ):
-        self.pad_to_multiple = pad_to_multiple
         self.device = device
         self.input_transform = input_transform
         self.target_transform = target_transform

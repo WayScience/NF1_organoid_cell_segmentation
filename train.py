@@ -161,7 +161,7 @@ img_selector = ImageSelector(
     crop_width=256,
     device=device,
 )
-image_preprocessor = ImagePreProcessor(pad_to_multiple=16, device=device)
+image_preprocessor = ImagePreProcessor(device=device)
 image_postprocessor = ImagePostProcessor()
 
 img_dataset = CellSlicetoSliceDataset(
