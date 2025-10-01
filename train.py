@@ -12,6 +12,8 @@ from callbacks.Callbacks import Callbacks
 from callbacks.utils.SampleImages import SampleImages
 from callbacks.utils.SaveEpochSlices import SaveEpochSlices
 from datasets.dataset_00.CellSlicetoSliceDataset import CellSlicetoSliceDataset
+from datasets.dataset_00.utils.image_metadata import (get_image_paths,
+                                                      get_image_specs)
 from datasets.dataset_00.utils.ImagePostProcessor import ImagePostProcessor
 from datasets.dataset_00.utils.ImagePreProcessor import ImagePreProcessor
 from datasets.dataset_00.utils.ImageSelector import ImageSelector
@@ -98,36 +100,13 @@ class OptimizationManager:
             return trainer_obj.best_loss_value
 
 
-# |%%--%%| <Twmb6mPjf5|sNNHe7R4s3>
-r"""°°°
-## Find the root of the git repo on the host system
-°°°"""
-# |%%--%%| <sNNHe7R4s3|5uHY3JoEKK>
-
-# Get the current working directory
-cwd = pathlib.Path.cwd()
-
-if (cwd / ".git").is_dir():
-    root_dir = cwd
-
-else:
-    root_dir = None
-    for parent in cwd.parents:
-        if (parent / ".git").is_dir():
-            root_dir = parent
-            break
-
-# Check if a Git root directory was found
-if root_dir is None:
-    raise FileNotFoundError("No Git root directory found.")
-
-# |%%--%%| <5uHY3JoEKK|ExjIoeHzuw>
+# |%%--%%| <Twmb6mPjf5|ExjIoeHzuw>
 r"""°°°
 # Inputs
 °°°"""
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
-root_data_path = root_dir / "big_drive/NF1_organoid_processed_patients"
+root_data_path = pathlib.Path("big_drive").resolve(strict=True)
 patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
@@ -151,7 +130,12 @@ Optimization of the first segmentation model with the following:
 """
 mlflow.set_tag("mlflow.note.content", description)
 
-# |%%--%%| <9NUAycuR83|muTDx2W917>
+# |%%--%%| <9NUAycuR83|RXyUovWJFX>
+
+image_paths = get_image_paths(patient_folders=patient_folders)
+image_specs = get_image_specs(image_paths=image_paths)
+
+# |%%--%%| <RXyUovWJFX|muTDx2W917>
 
 img_selector = ImageSelector(
     number_of_slices=3,
@@ -165,8 +149,8 @@ image_preprocessor = ImagePreProcessor(device=device)
 image_postprocessor = ImagePostProcessor()
 
 img_dataset = CellSlicetoSliceDataset(
-    root_data_path=root_data_path,
-    patient_folders=patient_folders,
+    image_paths=image_paths,
+    image_specs=image_specs,
     image_selector=img_selector,
     image_preprocessor=image_preprocessor,
 )

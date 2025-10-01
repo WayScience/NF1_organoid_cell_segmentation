@@ -17,71 +17,18 @@ class CellSlicetoSliceDataset(Dataset):
 
     def __init__(
         self,
-        root_data_path: pathlib.Path,
-        patient_folders: list[str],
+        image_paths: list[pathlib.Path],
+        image_specs: dict[str, Any],
         image_selector: Any,
         image_preprocessor: Any,
     ):
-        self.root_data_path = root_data_path
-        self.patient_folders = patient_folders
 
-        self.data_paths = self.get_image_paths()
-        image_specs = self.get_image_specs()
         image_selector.set_image_specs(**image_specs)
-        self.data_crops = image_selector(self.data_paths)
+        self.data_crops = image_selector(image_paths)
         self.image_preprocessor = image_preprocessor
         self.image_preprocessor.set_image_specs(**image_specs)
 
         self.split_data = False
-
-    def get_image_paths(self):
-        """
-        Get the image path of patients.
-        """
-
-        root_dir = pathlib.Path(self.root_data_path)
-
-        image_mask_pairs = []
-
-        for patient in self.patient_folders:
-            sample_path = root_dir / patient
-
-            brightfield_paths = sample_path.rglob(
-                "profiling_input_images/**/*TRANS.tif"
-            )
-
-            for bright_path in brightfield_paths:
-                mask_path = bright_path.with_name("cell_masks.tiff")
-
-                if mask_path.exists():
-                    image_mask_pairs.append(
-                        {"input_path": bright_path, "target_path": mask_path}
-                    )
-
-        return image_mask_pairs
-
-    def get_image_specs(self) -> None:
-
-        input_example = tifffile.imread(self.data_paths[0]["input_path"])
-        target_example = tifffile.imread(self.data_paths[0]["target_path"])
-
-        if target_example.ndim == 2:
-            image_height, image_width = target_example.shape
-        elif target_example.ndim == 3:
-            image_height, image_width = (
-                target_example.shape[1],
-                target_example.shape[2],
-            )
-        else:
-            raise ValueError(f"Unexpected target shape: {target_example.shape}")
-
-        return {
-            "input_max_pixel_value": np.iinfo(input_example.dtype).max,
-            "input_ndim": input_example.ndim,
-            "target_ndim": target_example.ndim,
-            "image_height": image_height,
-            "image_width": image_width,
-        }
 
     def __len__(self):
         return len(self.data_crops)
