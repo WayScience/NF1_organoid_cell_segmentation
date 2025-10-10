@@ -14,38 +14,75 @@ class ImageSelector:
 
     def __init__(
         self,
-        number_of_slices: int = 1,
+        input_crop_shape: tuple[int],
+        target_crop_shape: tuple[int],
         slice_stride: int = 1,
         crop_stride: int = 256,
-        crop_height: int = 256,
-        crop_width: int = 256,
         device: Union[str, torch.device] = "cuda",
     ):
-        self.number_of_slices = number_of_slices
+        """
+        input_crop_shape:
+            Expects the crop shape to be: (Z, H, W)
+            Z -> Number of Z slices
+            H -> Image Height
+            W -> Image Width
+
+        target_crop_shape:
+            Expects image of shape: (Z, H, W)
+            Z -> Number of Z slices
+            H -> Image Height
+            W -> Image Width
+
+        slice_stride: int
+            Number of slices to move by when selecting images.
+
+        crop_stride: int
+            Size of the the stride in both height and width to move by when selecting images.
+        """
+
+        if len(input_crop_shape) != 3 or len(target_crop_shape) != 3:
+            raise ValueError(
+                "The input and target must both have three dimensions of (z-slices, height, width)"
+            )
+
+        for dimension in range(1, 3):
+            if input_crop_shape[dimension] != target_crop_shape[dimension]:
+                raise ValueError(
+                    "The height and width of both the input and target crops must be equal."
+                )
+
+        self.input_crop_shape = input_crop_shape
+        self.target_crop_shape = target_crop_shape
+
         self.slice_stride = slice_stride
         self.crop_stride = crop_stride
-        self.crop_height = crop_height
-        self.crop_width = crop_width
 
-        self.neighbors_per_side = self.number_of_slices // 2
+        self.input_neighbors_per_side = self.input_crop_shape[0] // 2
+        self.target_neighbors_per_side = self.target_crop_shape[0] // 2
         self.device = device
 
-        if self.number_of_slices % 2 == 0:
+        if self.input_crop_shape[0] % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")
 
     def set_image_specs(
         self,
         input_max_pixel_value: int,
-        image_height,
-        image_width,
+        image_shape: tuple[int],
         **kwargs,
     ) -> None:
+        self.image_shape = image_shape
         self.input_max_pixel_value = input_max_pixel_value
-        self.image_height = image_height
-        self.image_width = image_width
+
+    """
+    image_shape:
+        Expects image of shape: (Z, H, W)
+        Z -> Number of Z slices
+        H -> Image Height
+        W -> Image Width
+    """
 
     def select_zslices(
-        self, img: np.ndarray, img_path: pathlib.Path
+        self, img: np.ndarray, img_path: pathlib.Path, neighbors_per_side: int
     ) -> dict[pathlib.Path, list[dict[str, Any]]]:
         """
         Expects image of shape: (Z, H, W)
@@ -57,16 +94,16 @@ class ImageSelector:
         zslice_groups = defaultdict(list)
 
         for z_index in range(
-            self.neighbors_per_side,
-            img.shape[0] - self.neighbors_per_side,
+            neighbors_per_side,
+            img.shape[0] - neighbors_per_side,
             self.slice_stride,
         ):
 
             selected_zslices = []
 
             for z_index_neigh in range(
-                z_index - self.neighbors_per_side,
-                z_index + self.neighbors_per_side + 1,
+                z_index - neighbors_per_side,
+                z_index + neighbors_per_side + 1,
             ):
                 selected_zslices.append(z_index_neigh)
 
@@ -148,19 +185,19 @@ class ImageSelector:
 
         crop_coords = []
         y_starts = list(
-            range(0, self.image_height - self.crop_stride + 1, self.crop_stride)
+            range(0, self.image_shape[1] - self.crop_stride + 1, self.crop_stride)
         )
         x_starts = list(
-            range(0, self.image_width - self.crop_stride + 1, self.crop_stride)
+            range(0, self.image_shape[2] - self.crop_stride + 1, self.crop_stride)
         )
         for y in y_starts:
             for x in x_starts:
                 crop_coords.append(
                     {
                         "height_start": y,
-                        "height_end": y + self.crop_height,
+                        "height_end": y + self.input_crop_shape[1],
                         "width_start": x,
-                        "width_end": x + self.crop_width,
+                        "width_end": x + self.input_crop_shape[2],
                     }
                 )
         return crop_coords
@@ -191,6 +228,7 @@ class ImageSelector:
                 tifffile.imread(img_path["input_path"]).astype(np.float32)
                 / self.input_max_pixel_value,
                 img_path["input_path"],
+                neighbors_per_side=self.input_neighbors_per_side,
             )
 
             target_img = tifffile.imread(img_path["target_path"])
@@ -199,6 +237,7 @@ class ImageSelector:
             z_slices_target = self.select_zslices(
                 target_img,
                 img_path["target_path"],
+                neighbors_per_side=self.target_neighbors_per_side,
             )
 
             data_locations.append({"input": z_slices_input, "target": z_slices_target})
