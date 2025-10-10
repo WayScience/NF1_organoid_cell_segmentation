@@ -12,10 +12,12 @@ class ImagePreProcessor:
 
     def __init__(
         self,
+        image_specs: dict[str, Any],
         device: str = "cuda",
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
     ):
+        self.image_specs = image_specs
         self.device = device
         self.input_transform = input_transform
         self.target_transform = target_transform
@@ -71,12 +73,12 @@ class ImagePreProcessor:
         if self.target_transform is not None:
             target_img = self.target_transform(image=target_img)["image"]
 
-        input_img = input_img / self.input_max_pixel_value
+        input_img = input_img / self.image_specs["input_max_pixel_value"]
 
         target_img = (target_img != 0).astype(np.float32)
 
-        input_img = self.format_img(input_img, self.input_ndim)
-        target_img = self.format_img(target_img, self.target_ndim)
+        input_img = self.format_img(input_img, self.image_specs["input_ndim"])
+        target_img = self.format_img(target_img, self.image_specs["target_ndim"])
 
         processed_data = {
             "input_image": input_img,
