@@ -12,7 +12,7 @@ from .save_utils import save_image_locally, save_image_mlflow
 
 class SaveWholeSlices:
     """
-    Saves all 2D images and slices to a 3D tiff format either locally or in MLflow.
+    Saves choosen images, and all voxels from those images, to a 3D tiff format either locally or in MLflow.
     """
 
     def __init__(
@@ -51,6 +51,8 @@ class SaveWholeSlices:
     def reduce_dataset_idxs(self, image_dataset: torch.utils.data.Dataset):
         """
         For reducing the dataset to only unique indices.
+        We don't want to save redundant images.
+        Dataset indices reflect crop samples, and not whole image samples prior to this function.
         """
         self.unique_image_dataset_idxs = []
 
