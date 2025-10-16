@@ -3,7 +3,7 @@
 
 set -e
 
-# Path to the folder containing the mlflow images
+# Path to the folder containing the images
 mlflow_artifacts_path=$1
 
 temp_image_dir=$(mktemp -d)
