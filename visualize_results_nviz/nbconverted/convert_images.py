@@ -42,6 +42,7 @@ for img_path in img_dir_paths:
     image_dir = img_path.relative_to(artifacts_path)
 
     # Save 2D representations of 3D tiff images
+    # nViz can't convert 3D tiff images to an OME-tiff or OME-zarr format yet
     for zslice_idx in range(image.shape[0]):
         save_path = modified_artifacts_path / image_dir
         pathlib.Path(save_path.parent).mkdir(parents=True, exist_ok=True)
@@ -53,7 +54,7 @@ for img_path in img_dir_paths:
 
         segmentation_image_path = (
             thresholded_segmentations_save_path
-            / f"3D_generated-segmentation_{zslice_idx}.tiff"
+            / f"3D_generated-segmentation_{zslice_idx:02d}.tiff"
         )
 
         # Save 2D thresholded segmentations images
