@@ -183,7 +183,7 @@ whole_image_saver = SaveWholeSlices(
     image_dataset=whole_image_dataset,
     image_dataset_idxs=image_dataset_idxs,
     image_specs=image_specs,
-    stride=(1, 256, 256),
+    stride=(1, 32, 32),
     crop_shape=input_crop_shape,
     pad_mode="reflect",
     image_postprocessor=image_postprocessor,
@@ -199,7 +199,7 @@ image_prediction_saver = SaveEpochSlices(
 
 callbacks_args = {
     "early_stopping_counter_threshold": 5,
-    "image_savers": [image_prediction_saver, image_prediction_saver],
+    "image_savers": [image_prediction_saver, whole_image_saver],
     "image_postprocessor": image_postprocessor,
 }
 
