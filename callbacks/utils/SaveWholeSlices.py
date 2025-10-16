@@ -161,7 +161,7 @@ class SaveWholeSlices:
 
         save_image_path_folder = f"{patient_name}/{fov_well_name}"
         save_image_path_folder = (
-            f"whole_image/epoch_{self.epoch:02}/{save_image_path_folder}"
+            f"whole_images/epoch_{self.epoch:02}/{save_image_path_folder}"
             if self.epoch is not None
             else save_image_path_folder
         )
