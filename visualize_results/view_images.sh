@@ -8,7 +8,7 @@ mlflow_artifacts_path=$1
 
 temp_image_dir=$(mktemp -d)
 
-uv run python convert_images.py "$mlflow_artifacts_path" "$temp_image_dir"
+uv run python nbconverted/convert_images.py "$mlflow_artifacts_path" "$temp_image_dir"
 
 while true; do
     temp_zarr_dir=$(mktemp -d)
