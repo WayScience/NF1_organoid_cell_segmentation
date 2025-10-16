@@ -20,12 +20,11 @@ class SaveWholeSlices:
         image_dataset: torch.utils.data.Dataset,
         image_dataset_idxs: list[int],
         image_specs: dict[str, Any],
-        stride,
-        crop_shape,
+        stride: tuple[int],
+        crop_shape: tuple[int],
         pad_mode="reflect",
         image_postprocessor: Any = lambda x: x,
         local_save_path: Optional[pathlib.Path] = None,
-        **kwargs,
     ):
 
         self.image_dataset = image_dataset
@@ -199,6 +198,9 @@ class SaveWholeSlices:
             )
 
             # Only save these images if the segmentation mask isn't black
+            # We expect the model to generate black segmentation crops,
+            # which will present regardless of weather or not the whole segmented image
+            # is black or not.
             if sample_image:
                 padded_image = self.pad_image(
                     input_image=self.image_dataset[sample_idx]["input"]

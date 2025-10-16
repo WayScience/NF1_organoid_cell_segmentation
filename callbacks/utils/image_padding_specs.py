@@ -5,7 +5,9 @@ import numpy as np
 import tifffile
 
 
-def compute_pad(image_dim_size, crop_dim_size, stride):
+def compute_pad(
+    image_dim_size: int, crop_dim_size: int, stride: int
+) -> tuple[int, int]:
     """Compute how much padding is needed for one dimension."""
     if image_dim_size <= crop_dim_size:
         raise ValueError(
