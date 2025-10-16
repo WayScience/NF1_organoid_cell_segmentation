@@ -51,10 +51,15 @@ for img_path in img_dir_paths:
         tifffile.imwrite(save_path, image[zslice_idx])
         thresholded_segmentations_save_path = save_path.parent
 
-        # Save 2D thresholded segmentations images
-        tifffile.imwrite(
+        segmentation_image_path = (
             thresholded_segmentations_save_path
-            / f"3D_generated-segmentation_{zslice_idx}.tiff",
-            (image[zslice_idx] >= 55).astype(np.uint8) * 255,
+            / f"3D_generated-segmentation_{zslice_idx}.tiff"
         )
+
+        # Save 2D thresholded segmentations images
+        if not segmentation_image_path.exists():
+            tifffile.imwrite(
+                segmentation_image_path,
+                (image[zslice_idx] >= 55).astype(np.uint8) * 255,
+            )
 
