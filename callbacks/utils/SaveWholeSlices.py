@@ -11,6 +11,10 @@ from .save_utils import save_image_locally, save_image_mlflow
 
 
 class SaveWholeSlices:
+    """
+    Saves all 2D images and slices to a 3D tiff format either locally or in MLflow.
+    """
+
     def __init__(
         self,
         image_dataset: torch.utils.data.Dataset,
@@ -61,6 +65,13 @@ class SaveWholeSlices:
     def predict_target(
         self, padded_image: torch.Tensor, model: torch.nn.Module
     ) -> torch.Tensor:
+        """
+        padded_image:
+            Expects image of shape: (Z, H, W)
+            Z -> Number of Z slices
+            H -> Image Height
+            W -> Image Width
+        """
 
         output = torch.zeros(
             *padded_image.shape,
@@ -97,6 +108,13 @@ class SaveWholeSlices:
         return output[self.original_crop_coords]
 
     def pad_image(self, input_image: torch.Tensor) -> torch.Tensor:
+        """
+        input_image:
+            Expects image of shape: (Z, H, W)
+            Z -> Number of Z slices
+            H -> Image Height
+            W -> Image Width
+        """
 
         padded_image = np.pad(
             input_image.detach().cpu().numpy(),
@@ -149,6 +167,7 @@ class SaveWholeSlices:
         )
 
         if self.local_save_path is None:
+            print("Started_save")
             save_image_mlflow(
                 image=image,
                 save_image_path_folder=save_image_path_folder,
