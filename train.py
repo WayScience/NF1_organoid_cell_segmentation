@@ -11,10 +11,14 @@ import torch
 from callbacks.Callbacks import Callbacks
 from callbacks.utils.SampleImages import SampleImages
 from callbacks.utils.SaveEpochSlices import SaveEpochSlices
+from callbacks.utils.SaveWholeSlices import SaveWholeSlices
 from datasets.dataset_00.CellSlicetoSliceDataset import CellSlicetoSliceDataset
+from datasets.dataset_00.utils.image_metadata import (get_image_paths,
+                                                      get_image_specs)
 from datasets.dataset_00.utils.ImagePostProcessor import ImagePostProcessor
 from datasets.dataset_00.utils.ImagePreProcessor import ImagePreProcessor
 from datasets.dataset_00.utils.ImageSelector import ImageSelector
+from datasets.dataset_01.AllSlicesDataset import AllSlicesDataset
 from metrics.BCE import BCE
 from metrics.ConfusionMetrics import ConfusionMetrics
 from metrics.Dice import Dice
@@ -98,36 +102,15 @@ class OptimizationManager:
             return trainer_obj.best_loss_value
 
 
-# |%%--%%| <Twmb6mPjf5|sNNHe7R4s3>
-r"""°°°
-## Find the root of the git repo on the host system
-°°°"""
-# |%%--%%| <sNNHe7R4s3|5uHY3JoEKK>
-
-# Get the current working directory
-cwd = pathlib.Path.cwd()
-
-if (cwd / ".git").is_dir():
-    root_dir = cwd
-
-else:
-    root_dir = None
-    for parent in cwd.parents:
-        if (parent / ".git").is_dir():
-            root_dir = parent
-            break
-
-# Check if a Git root directory was found
-if root_dir is None:
-    raise FileNotFoundError("No Git root directory found.")
-
-# |%%--%%| <5uHY3JoEKK|ExjIoeHzuw>
+# |%%--%%| <Twmb6mPjf5|ExjIoeHzuw>
 r"""°°°
 # Inputs
 °°°"""
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
-root_data_path = root_dir / "big_drive/NF1_organoid_processed_patients"
+root_data_path = pathlib.Path("big_drive/NF1_organoid_processed_patients").resolve(
+    strict=True
+)
 patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
@@ -138,7 +121,6 @@ np.random.seed(0)
 torch.manual_seed(0)
 
 mlflow.log_param("random_seed", 0)
-
 
 description = """
 Optimization of the first segmentation model with the following:
@@ -151,30 +133,43 @@ Optimization of the first segmentation model with the following:
 """
 mlflow.set_tag("mlflow.note.content", description)
 
-# |%%--%%| <9NUAycuR83|muTDx2W917>
+# |%%--%%| <9NUAycuR83|RXyUovWJFX>
+
+image_paths = get_image_paths(patient_folders=patient_folders)
+image_specs = get_image_specs(image_paths=image_paths)
+
+# |%%--%%| <RXyUovWJFX|muTDx2W917>
+
+input_crop_shape = (3, 512, 512)
 
 img_selector = ImageSelector(
-    number_of_slices=1,
+    input_crop_shape=input_crop_shape,
+    target_crop_shape=(1, 512, 512),
     slice_stride=1,
-    crop_stride=256,
-    crop_height=256,
-    crop_width=256,
+    crop_stride=512,
     device=device,
 )
-image_preprocessor = ImagePreProcessor(pad_to_multiple=16, device=device)
+
+image_preprocessor = ImagePreProcessor(image_specs=image_specs, device=device)
 image_postprocessor = ImagePostProcessor()
 
-img_dataset = CellSlicetoSliceDataset(
-    root_data_path=root_data_path,
-    patient_folders=patient_folders,
+crop_image_dataset = CellSlicetoSliceDataset(
+    image_paths=image_paths,
+    image_specs=image_specs,
     image_selector=img_selector,
+    image_preprocessor=image_preprocessor,
+)
+
+whole_image_dataset = AllSlicesDataset(
+    dataset=crop_image_dataset,
+    image_specs=image_specs,
     image_preprocessor=image_preprocessor,
 )
 
 # |%%--%%| <muTDx2W917|Ljn54YK9d8>
 
 hash_splitter = HashSplitter(
-    dataset=img_dataset,
+    dataset=crop_image_dataset,
     train_frac=0.8,
     val_frac=0.1,
 )
@@ -184,30 +179,40 @@ _, val_dataloader, _ = hash_splitter(batch_size=10)
 
 image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=300)()
 
-image_saver = SaveEpochSlices(
+whole_image_saver = SaveWholeSlices(
+    image_dataset=whole_image_dataset,
     image_dataset_idxs=image_dataset_idxs,
-    data_split="validation",
+    image_specs=image_specs,
+    stride=(1, 32, 32),
+    crop_shape=input_crop_shape,
+    pad_mode="reflect",
     image_postprocessor=image_postprocessor,
+)
+
+image_prediction_saver = SaveEpochSlices(
+    image_dataset=val_dataloader.dataset.dataset,
+    image_postprocessor=image_postprocessor,
+    image_dataset_idxs=image_dataset_idxs,
 )
 
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
 
 callbacks_args = {
     "early_stopping_counter_threshold": 5,
-    "image_savers": image_saver,
+    "image_savers": [image_prediction_saver, whole_image_saver],
     "image_postprocessor": image_postprocessor,
 }
 
 # |%%--%%| <sv6R19116h|1ibSiDMEcz>
 
-unet = UNet(in_channels=1, out_channels=1)
+unet = UNet(in_channels=3, out_channels=1)
 
 # |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
 
 optimization_manager = OptimizationManager(
     trainer=UNetTrainer,
     hash_splitter=hash_splitter,
-    dataset=img_dataset,
+    dataset=crop_image_dataset,
     callbacks_args=callbacks_args,
     model=unet,
     epochs=30,

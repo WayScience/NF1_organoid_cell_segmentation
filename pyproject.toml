@@ -6,16 +6,18 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "albumentations>=2.0.8",
-    "cityhash>=0.4.9",
-    "ipykernel>=6.29.5",
-    "matplotlib>=3.10.3",
-    "mlflow>=3.2.0",
+    "cityhash>=0.4.10",
+    "cuda-python==12.9",
+    "ipykernel>=7.0.1",
+    "matplotlib>=3.10.7",
+    "mlflow>=3.4.0",
     "nbconvert>=7.16.6",
-    "numpy>=2.3.1",
-    "optuna>=4.4.0",
-    "pynvim>=0.5.2",
-    "tifffile>=2025.6.11",
-    "torch>=2.7.1",
+    "numpy>=2.3.4",
+    "optuna>=4.5.0",
+    "pynvim>=0.6.0",
+    "tifffile>=2025.10.4",
+    "torch>=2.9.0",
+    "torchvision>=0.24.0",
 ]
 
 [project.scripts]
