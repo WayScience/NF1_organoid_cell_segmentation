@@ -168,7 +168,6 @@ class SaveWholeSlices:
         )
 
         if self.local_save_path is None:
-            print("Started_save")
             save_image_mlflow(
                 image=image,
                 save_image_path_folder=save_image_path_folder,
