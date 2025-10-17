@@ -46,5 +46,5 @@ def get_image_specs(image_paths: list[dict[str, pathlib.Path]]) -> dict[str, Any
         "input_max_pixel_value": np.iinfo(input_example.dtype).max,
         "input_ndim": input_example.ndim,
         "target_ndim": target_example.ndim,
-        "image_shape": (image_slices, image_height, image_width),
+        "image_shape": [image_slices, image_height, image_width],
     }

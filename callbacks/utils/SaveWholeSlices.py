@@ -12,7 +12,7 @@ from .save_utils import save_image_locally, save_image_mlflow
 
 class SaveWholeSlices:
     """
-    Saves choosen images, and all voxels from those images, to a 3D tiff format either locally or in MLflow.
+    Saves chosen images, and all voxels from those images, to a 3D tiff format either locally or in MLflow.
     """
 
     def __init__(
@@ -39,13 +39,7 @@ class SaveWholeSlices:
         self.unique_image_dataset_idxs = []
         self.reduce_dataset_idxs(image_dataset=image_dataset)
 
-        self.pad_width, self.original_crop_coords = compute_patch_mapping(
-            image_specs=image_specs,
-            crop_shape=crop_shape,
-            stride=stride,
-            pad_slices=True,
-        )
-
+        self.pad_width, self.original_crop_coords = None, None
         self.epoch = None
 
     def reduce_dataset_idxs(self, image_dataset: torch.utils.data.Dataset):
@@ -191,6 +185,17 @@ class SaveWholeSlices:
 
         self.epoch = epoch
         for sample_idx in self.unique_image_dataset_idxs:
+
+            self.image_specs["image_shape"][0] = tifffile.imread(
+                self.image_dataset[sample_idx]["input_path"]
+            ).shape[0]
+
+            self.pad_width, self.original_crop_coords = compute_patch_mapping(
+                image_specs=self.image_specs,
+                crop_shape=self.crop_shape,
+                stride=self.stride,
+                pad_slices=True,
+            )
 
             sample_image = self.save_image(
                 image_path=self.image_dataset[sample_idx]["target_path"],
