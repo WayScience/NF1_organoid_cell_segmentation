@@ -68,15 +68,7 @@ def compute_patch_mapping(
             the original unpadded image from the padded one.
     """
 
-    padding_slices = (
-        compute_pad(
-            image_dim_size=image_specs["image_shape"][0],
-            crop_dim_size=crop_shape[0],
-            stride=stride[0],
-        )
-        if pad_slices
-        else (0, 0)
-    )
+    padding_slices = tuple([crop_shape[0] // 2] * 2) if pad_slices else (0, 0)
 
     padding_height = compute_pad(
         image_dim_size=image_specs["image_shape"][1],
@@ -91,7 +83,7 @@ def compute_patch_mapping(
     )
 
     return (padding_slices, padding_height, padding_width), (
-        slice(padding_slices[0], padding_slices[0] + image_specs["image_shape"][0]),
-        slice(padding_height[0], padding_height[0] + image_specs["image_shape"][1]),
-        slice(padding_width[0], padding_width[0] + image_specs["image_shape"][2]),
+        slice(padding_slices[0], image_specs["image_shape"][0] + padding_slices[0]),
+        slice(padding_height[0], image_specs["image_shape"][1] + padding_height[0]),
+        slice(padding_width[0], image_specs["image_shape"][2] + padding_width[0]),
     )
