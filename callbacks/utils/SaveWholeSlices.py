@@ -94,7 +94,6 @@ class SaveWholeSlices:
                     generated_prediction=model(crop)
                 ).squeeze(0)
 
-            # Accumulate prediction and weights
             output[slices] += generated_prediction
             weight[slices] += 1.0
 
@@ -190,6 +189,10 @@ class SaveWholeSlices:
                 self.image_dataset[sample_idx]["input_path"]
             ).shape[0]
 
+            # For computing image padding and original crop coordinates
+            # Only the z-padding and the z-crop coordinates need to be computed
+            # each time, because the number of z-slices isn't consistent across
+            # 3D images.
             self.pad_width, self.original_crop_coords = compute_patch_mapping(
                 image_specs=self.image_specs,
                 crop_shape=self.crop_shape,
