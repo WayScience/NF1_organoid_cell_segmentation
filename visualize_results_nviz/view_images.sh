@@ -18,7 +18,7 @@ while true; do
     uvx --python 3.13 --with nviz==0.0.4 nviz tiff_to_zarr \
         --image_dir "$chosen_dir" \
         --output_path "$temp_zarr_dir/output.zarr" \
-        --channel_map '{"input":"Brightfield","generated-prediction":"Generated Prediction", "segmentation":"Generated Segmentation", "TRANS":"Pipeline Segmentation"}' \
+        --channel_map '{"input":"Brightfield", "segmentation":"Generated Segmentation", "TRANS":"Pipeline Segmentation", "background":"Generated Background Segmentation", "cell":"Generated Cell Segmentation", "cell-boundary":"Generated Cell Boundary Prediction}' \
         --scaling_values '(1.0,0.1,0.1)'  # Microscope values
 
     uvx --python 3.13 --with nviz==0.0.4 nviz view_zarr \
