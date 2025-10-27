@@ -8,6 +8,7 @@ import pathlib
 import sys
 import tempfile
 
+import numpy as np
 import tifffile
 from nviz.image import tiff_to_zarr
 from nviz.view import view_zarr_with_napari
@@ -33,7 +34,7 @@ scaling_values = [1.0, 0.1, 0.1]
 
 # # Split, Convert, and View Images
 
-# In[1]:
+# In[ ]:
 
 
 with tempfile.TemporaryDirectory() as tmpdir:
@@ -66,7 +67,6 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
             # Save 2D thresholded segmentations images
             if not segmentation_image_path.exists():
-                print(segmentation_image_path)
                 tifffile.imwrite(
                     segmentation_image_path,
                     (image[zslice_idx] >= 55).astype(np.uint8) * 255,
