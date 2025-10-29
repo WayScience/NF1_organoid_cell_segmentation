@@ -37,6 +37,12 @@ class Dice(AbstractMetric):
                 "The mask_weights torch tensor must have one dimension with three weights."
             )
 
+        if mask_idx_mapping is None and not is_loss:
+            raise ValueError(
+                "The mask index mapping must be defined if Dice is used as a loss."
+            )
+
+
         self.mask_weights_sum = self.mask_weights.sum()
 
         self.smooth = smooth

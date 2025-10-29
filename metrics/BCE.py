@@ -14,7 +14,7 @@ class BCE(AbstractMetric):
 
     def __init__(
         self,
-        mask_idx_mapping: dict[int, str],
+        mask_idx_mapping: Optional[dict[int, str]] = None,
         mask_weights: Optional[torch.Tensor] = None,
         is_loss: bool = False,
         use_logits: bool = True,
@@ -31,6 +31,11 @@ class BCE(AbstractMetric):
         if self.mask_weights.ndim != 1 or self.mask_weights.shape[0] != 3:
             raise ValueError(
                 "The mask_weights torch tensor must have one dimension with three weights."
+            )
+
+        if mask_idx_mapping is None and not is_loss:
+            raise ValueError(
+                "The mask index mapping must be defined if BCE is used as a loss."
             )
 
         self.mask_weights_sum = self.mask_weights.sum()
