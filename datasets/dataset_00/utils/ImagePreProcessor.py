@@ -15,13 +15,12 @@ class ImagePreProcessor:
         self,
         image_specs: dict[str, Any],
         device: str = "cuda",
-        cell_boundary_thickness: Optional[int] = None,
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
     ):
         self.image_specs = image_specs
         self.device = device
-        self.cell_boundary_thickness = cell_boundary_thickness
+        self.crop_margin = image_specs["crop_margin"]
         self.input_transform = input_transform
         self.target_transform = target_transform
 
@@ -57,14 +56,14 @@ class ImagePreProcessor:
         W: Width of the image (in pixels)
         """
 
-        if self.cell_boundary_thickness is None:
+        if self.crop_margin is None:
             return img
 
         return img[
             :,
             :,
-            self.cell_boundary_thickness : -self.cell_boundary_thickness,
-            self.cell_boundary_thickness : -self.cell_boundary_thickness,
+            self.crop_margin : -self.crop_margin,
+            self.crop_margin : -self.crop_margin,
         ]
 
     def __call__(

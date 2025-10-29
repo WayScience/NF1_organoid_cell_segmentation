@@ -1,6 +1,6 @@
 import pathlib
 from collections import defaultdict
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import tifffile
@@ -16,6 +16,7 @@ class ImageSelector:
         self,
         input_crop_shape: tuple[int],
         target_crop_shape: tuple[int],
+        image_specs: Optional[int] = None,
         slice_stride: int = 1,
         crop_stride: int = 256,
         device: Union[str, torch.device] = "cuda",
@@ -53,6 +54,8 @@ class ImageSelector:
 
         self.input_crop_shape = input_crop_shape
         self.target_crop_shape = target_crop_shape
+
+        self.crop_margin = 0 if image_specs is None else image_specs["crop_margin"]
 
         self.slice_stride = slice_stride
         self.crop_stride = crop_stride
@@ -185,10 +188,21 @@ class ImageSelector:
 
         crop_coords = []
         y_starts = list(
-            range(0, self.image_shape[1] - self.crop_stride + 1, self.crop_stride)
+            range(
+                0,
+                self.image_shape[1]
+                - (2 * self.crop_margin)  # Both sides of the images were removed
+                - self.crop_stride
+                + 1,
+                self.crop_stride,
+            )
         )
         x_starts = list(
-            range(0, self.image_shape[2] - self.crop_stride + 1, self.crop_stride)
+            range(
+                0,
+                self.image_shape[2] - (2 * self.crop_margin) - self.crop_stride + 1,
+                self.crop_stride,
+            )
         )
         for y in y_starts:
             for x in x_starts:
