@@ -106,7 +106,9 @@ class CellSlicetoSliceDataset(Dataset):
             self.crop_coords["width_start"] : self.crop_coords["width_end"],
         ]
 
+        # Target images also have semantic channels (C,Z,H,W)
         target_image = target_image[
+            :,
             :,
             self.crop_coords["height_start"] : self.crop_coords["height_end"],
             self.crop_coords["width_start"] : self.crop_coords["width_end"],
