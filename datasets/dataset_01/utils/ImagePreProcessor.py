@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 
 
-class ImagePreProcessor:
+class AllSlicesImagePreProcessor:
     """
     Processes the image prior to model training and inferencing
     """
@@ -13,21 +13,18 @@ class ImagePreProcessor:
     def __init__(
         self,
         image_specs: dict[str, Any],
+        crop_slices: int,
+        crop_height: int,
+        crop_width: int,
         device: str = "cuda",
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
+        pad_type: str = "reflection",
     ):
-        self.image_specs = image_specs
         self.device = device
         self.input_transform = input_transform
         self.target_transform = target_transform
-
-    def set_image_specs(
-        self, input_max_pixel_value: int, input_ndim: int, target_ndim: int, **kwargs
-    ) -> None:
-        self.input_max_pixel_value = input_max_pixel_value
-        self.input_ndim = input_ndim
-        self.target_ndim = target_ndim
+        self.pad_type = pad_type
 
     def format_img(self, img: np.ndarray, img_dims: int) -> torch.Tensor:
         """
@@ -41,16 +38,11 @@ class ImagePreProcessor:
         W: Width of the image (in pixels)
         """
 
-        if img_dims == 2:
-            img = torch.from_numpy(img).unsqueeze(0)
-
-        elif img_dims == 3:
-            img = torch.from_numpy(img)
-
-        else:
+        if img_dims != 3:
             raise ValueError(
                 f"The number of dimensions in your image should be 2 or 3. It is currently {img_dims}"
             )
+        img = torch.from_numpy(img)
 
         return img.to(dtype=torch.float32, device=self.device)
 

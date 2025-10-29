@@ -167,6 +167,7 @@ class Callbacks:
             ("train", train_dataloader),
             ("validation", val_dataloader),
         ]:
+            f = 0
 
             self._log_epoch_metrics(
                 model=model,
@@ -179,9 +180,11 @@ class Callbacks:
 
         # Images can be saved in different ways if desired in the future
         if self.image_savers is not None and not isinstance(self.image_savers, list):
-            self.image_savers(
-                dataset=val_dataloader.dataset.dataset, model=model, epoch=epoch
-            )
+            self.image_savers(model=model, epoch=epoch)
+
+        else:
+            for image_saver in self.image_savers:
+                image_saver(model=model, epoch=epoch)
 
         val_sample = next(iter(val_dataloader))
         val_sample = val_sample["input"]

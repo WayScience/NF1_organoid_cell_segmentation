@@ -7,6 +7,8 @@ import numpy as np
 import tifffile
 import torch
 
+from .save_utils import save_image_mlflow
+
 
 class SaveEpochSlices:
     """
@@ -15,30 +17,24 @@ class SaveEpochSlices:
 
     def __init__(
         self,
-        image_dataset_idxs: list[int],
-        data_split: str,
+        image_dataset: torch.utils.data.Dataset,
         image_postprocessor: Any = lambda x: x,
+        image_dataset_idxs: Optional[list[int]] = None,
     ) -> None:
 
+        self.image_dataset = image_dataset
         self.image_dataset_idxs = image_dataset_idxs
-        self.data_split = data_split
         self.crop_key_order = ["height_start", "height_end", "width_start", "width_end"]
         self.image_postprocessor = image_postprocessor
 
-    def save_image_mlflow(
-        self,
-        image: torch.Tensor,
-        save_image_path_folder: str,
-        image_filename: str,
-    ) -> None:
+        self.epoch = None
+        self.metadata = None
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            save_path = pathlib.Path(tmp_dir) / image_filename
-            tifffile.imwrite(save_path, image.astype(np.uint8))
-
-            mlflow.log_artifact(
-                local_path=save_path, artifact_path=save_image_path_folder
-            )
+        self.image_dataset_idxs = (
+            range(len(image_dataset))
+            if image_dataset_idxs is None
+            else image_dataset_idxs
+        )
 
     def save_image(
         self,
@@ -67,20 +63,18 @@ class SaveEpochSlices:
             for k in self.crop_key_order
         )
 
-        filename = (
-            f"{image_path.stem}__{image_type}{image_path.suffix}"
-            if image_type == "generated_prediction"
-            else image_path.name
-        )
+        image_suffix = ".tiff" if ".tif" in image_path.suffix else image_path.suffix
 
-        image_filename = f"{crop_name}__{filename}"
+        image_filename = (
+            f"3D_{image_type}_{image_path.stem}__{crop_name}__{image_suffix}"
+        )
 
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
-        save_image_path_folder = f"epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
+        save_image_path_folder = f"cropped_images/epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
 
-        self.save_image_mlflow(
+        save_image_mlflow(
             image=image,
             save_image_path_folder=save_image_path_folder,
             image_filename=image_filename,
@@ -93,12 +87,10 @@ class SaveEpochSlices:
     ) -> torch.Tensor:
         return self.image_postprocessor(model(image.unsqueeze(0)).squeeze(0))
 
-    def __call__(
-        self, dataset: torch.utils.data.Dataset, model: torch.nn.Module, epoch: int
-    ) -> None:
+    def __call__(self, model: torch.nn.Module, epoch: int) -> None:
         self.epoch = epoch
         for sample_idx in self.image_dataset_idxs:
-            sample = dataset[sample_idx]
+            sample = self.image_dataset[sample_idx]
             self.metadata = sample["metadata"]
 
             sample_image = self.save_image(
@@ -121,6 +113,6 @@ class SaveEpochSlices:
 
                 self.save_image(
                     image_path=sample["target_path"],
-                    image_type="generated_prediction",
+                    image_type="generated-prediction",
                     image=generated_prediction,
                 )
