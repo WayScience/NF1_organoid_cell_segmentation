@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import tifffile
 import torch
+from instance_to_semantic_segmentation import instance_to_semantic_segmentation
 
 from .image_padding_specs import compute_patch_mapping
 from .save_utils import save_image_locally, save_image_mlflow
@@ -22,6 +23,7 @@ class SaveWholeSlices:
         image_specs: dict[str, Any],
         stride: tuple[int],
         crop_shape: tuple[int],
+        mask_idx_mapping: dict[int, str],
         pad_mode="reflect",
         image_postprocessor: Any = lambda x: x,
         local_save_path: Optional[pathlib.Path] = None,
@@ -32,6 +34,7 @@ class SaveWholeSlices:
         self.image_specs = image_specs
         self.stride = stride
         self.crop_shape = crop_shape
+        self.mask_idx_mapping = mask_idx_mapping
         self.pad_mode = pad_mode
         self.image_postprocessor = image_postprocessor
         self.local_save_path = local_save_path
@@ -69,7 +72,7 @@ class SaveWholeSlices:
         """
 
         output = torch.zeros(
-            *padded_image.shape,
+            (3, *padded_image.shape),
             dtype=torch.float32,
             device=padded_image.device,
         )
@@ -94,8 +97,9 @@ class SaveWholeSlices:
                     generated_prediction=model(crop)
                 ).squeeze(0)
 
-            output[slices] += generated_prediction
-            weight[slices] += 1.0
+            all_slices = (slice(None), *slices)
+            output[all_slices] += generated_prediction
+            weight[all_slices] += 1.0
 
         output /= weight
 
@@ -148,8 +152,6 @@ class SaveWholeSlices:
 
         image_suffix = ".tiff" if ".tif" in image_path.suffix else image_path.suffix
 
-        filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
-
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
@@ -161,18 +163,29 @@ class SaveWholeSlices:
         )
 
         if self.local_save_path is None:
-            save_image_mlflow(
+            save_func = save_image_locally
+
+        else:
+            save_image_path_folder = self.local_save_path / save_image_path_folder
+            save_func = save_image_mlflow
+
+        if image_type == "input":
+            filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
+            save_func(
                 image=image,
                 save_image_path_folder=save_image_path_folder,
                 image_filename=filename,
             )
         else:
-            save_image_path_folder = self.local_save_path / save_image_path_folder
-            save_image_locally(
-                image=image,
-                save_image_path_folder=save_image_path_folder,
-                image_filename=filename,
-            )
+            for mask_idx, mask_name in self.mask_idx_mapping.items():
+                filename = (
+                    f"3D_{image_type}_{mask_name}_{image_path.stem}{image_suffix}"
+                )
+                save_func(
+                    image=image[mask_idx],
+                    save_image_path_folder=save_image_path_folder,
+                    image_filename=filename,
+                )
 
         return True
 

@@ -18,11 +18,13 @@ class SaveEpochSlices:
     def __init__(
         self,
         image_dataset: torch.utils.data.Dataset,
+        mask_idx_mapping: dict[int, str],
         image_postprocessor: Any = lambda x: x,
         image_dataset_idxs: Optional[list[int]] = None,
     ) -> None:
 
         self.image_dataset = image_dataset
+        self.mask_idx_mapping = mask_idx_mapping
         self.image_dataset_idxs = image_dataset_idxs
         self.crop_key_order = ["height_start", "height_end", "width_start", "width_end"]
         self.image_postprocessor = image_postprocessor
@@ -65,20 +67,28 @@ class SaveEpochSlices:
 
         image_suffix = ".tiff" if ".tif" in image_path.suffix else image_path.suffix
 
-        image_filename = (
-            f"3D_{image_type}_{image_path.stem}__{crop_name}__{image_suffix}"
-        )
-
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
         save_image_path_folder = f"cropped_images/epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
 
-        save_image_mlflow(
-            image=image,
-            save_image_path_folder=save_image_path_folder,
-            image_filename=image_filename,
-        )
+        if image_type == "input":
+            image_filename = (
+                f"3D_{image_type}_{image_path.stem}__{crop_name}__{image_suffix}"
+            )
+            save_image_mlflow(
+                image=image,
+                save_image_path_folder=save_image_path_folder,
+                image_filename=image_filename,
+            )
+        else:
+            for mask_idx, mask_name in self.mask_idx_mapping.items():
+                image_filename = f"3D_{image_type}_{mask_name}_{image_path.stem}__{crop_name}__{image_suffix}"
+                save_image_mlflow(
+                    image=image[mask_idx],
+                    save_image_path_folder=save_image_path_folder,
+                    image_filename=image_filename,
+                )
 
         return True
 
