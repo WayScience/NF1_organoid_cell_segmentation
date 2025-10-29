@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import tifffile
 import torch
-from instance_to_semantic_segmentation import instance_to_semantic_segmentation
 
 from .image_padding_specs import compute_patch_mapping
 from .save_utils import save_image_locally, save_image_mlflow
