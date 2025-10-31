@@ -83,6 +83,7 @@ def compute_patch_mapping(
     )
 
     return (padding_slices, padding_height, padding_width), (
+        slice(None),
         slice(padding_slices[0], image_specs["image_shape"][0] + padding_slices[0]),
         slice(padding_height[0], image_specs["image_shape"][1] + padding_height[0]),
         slice(padding_width[0], image_specs["image_shape"][2] + padding_width[0]),

@@ -74,35 +74,34 @@ class Callbacks:
 
         with torch.no_grad():
             for samples in dataloader:
-                with autocast(enabled=kwargs["use_amp"], device_type=device):
-                    generated_predictions = model(samples["input"])
-                    sigmoid_generated_predictions = generated_predictions.clone()
+                generated_predictions = model(samples["input"])
+                sigmoid_generated_predictions = generated_predictions.clone()
 
-                    if self.compute_sigmoid:
-                        sigmoid_generated_predictions = self.image_postprocessor(
-                            generated_predictions
-                        )
+                if self.compute_sigmoid:
+                    sigmoid_generated_predictions = self.image_postprocessor(
+                        generated_predictions
+                    )
 
-                    self.loss(
+                self.loss(
+                    generated_predictions=(
+                        generated_predictions
+                        if self.loss.use_logits
+                        else sigmoid_generated_predictions
+                    ),
+                    targets=samples["target"],
+                    data_split_logging=data_split,
+                )
+
+                for metric in self.metrics:
+                    metric(
                         generated_predictions=(
                             generated_predictions
-                            if self.loss.use_logits
+                            if metric.use_logits
                             else sigmoid_generated_predictions
                         ),
                         targets=samples["target"],
                         data_split_logging=data_split,
                     )
-
-                    for metric in self.metrics:
-                        metric(
-                            generated_predictions=(
-                                generated_predictions
-                                if metric.use_logits
-                                else sigmoid_generated_predictions
-                            ),
-                            targets=samples["target"],
-                            data_split_logging=data_split,
-                        )
 
             self._log_metrics(time_step=time_step)
 
@@ -167,8 +166,6 @@ class Callbacks:
             ("train", train_dataloader),
             ("validation", val_dataloader),
         ]:
-            f = 0
-
             self._log_epoch_metrics(
                 model=model,
                 dataloader=dataloader,
