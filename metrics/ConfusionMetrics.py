@@ -35,7 +35,7 @@ class ConfusionMetrics(AbstractMetric):
         self.mask_weights_sum = self.mask_weights.sum()
 
         self.prediction_threshold = prediction_threshold
-        self.device = device
+        self.device = torch.device(device)
         self.reset()
 
     def reset(self):

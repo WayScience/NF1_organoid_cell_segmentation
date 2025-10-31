@@ -42,7 +42,7 @@ class BCE(AbstractMetric):
 
         self.is_loss = is_loss
         self.use_logits = use_logits
-        self.device = device
+        self.device = torch.device(device)
         self.bce_fn = None
         self.bce_pixel_func = None
 

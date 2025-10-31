@@ -49,7 +49,7 @@ class Dice(AbstractMetric):
         self.use_logits = use_logits
         self.prediction_threshold = prediction_threshold
         self.is_loss = is_loss
-        self.device = device
+        self.device = torch.device(device)
         self.data_split_logging: Optional[str] = None
         self.reset()
 
