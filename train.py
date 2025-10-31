@@ -22,6 +22,7 @@ from datasets.dataset_00.utils.ImagePostProcessor import ImagePostProcessor
 from datasets.dataset_00.utils.ImagePreProcessor import ImagePreProcessor
 from datasets.dataset_00.utils.ImageSelector import ImageSelector
 from datasets.dataset_01.AllSlicesDataset import AllSlicesDataset
+from datasets.dataset_01.utils.image_selection import select_unique_image_idxs
 from metrics.BCE import BCE
 from metrics.ConfusionMetrics import ConfusionMetrics
 from metrics.Dice import Dice
@@ -129,11 +130,11 @@ r"""°°°
 root_data_path = pathlib.Path("big_drive/NF1_organoid_processed_patients").resolve(
     strict=True
 )
-patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()][:1]
+patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
 
-device = "cuda"
+device = torch.device("cuda")
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
@@ -192,26 +193,7 @@ whole_image_dataset = AllSlicesDataset(
     image_preprocessor=whole_image_preprocessor,
 )
 
-#|%%--%%| <muTDx2W917|XDEnafwTZI>
-
-#crop_image_dataset.split_data = False
-
-#|%%--%%| <XDEnafwTZI|AIm5ORZAmZ>
-
-"""
-target_shape = (3, 1, 512, 512)
-for i in range(2_000):
-    if crop_image_dataset[i]["target"].shape != target_shape:
-        print(crop_image_dataset[i]["target"].shape)
-        print(crop_image_dataset[i]["metadata"])
-        print(i)
-        break
-    if i > 200:
-        break
-print("finished")
-"""
-
-# |%%--%%| <AIm5ORZAmZ|Ljn54YK9d8>
+# |%%--%%| <muTDx2W917|Ljn54YK9d8>
 
 hash_splitter = HashSplitter(
     dataset=crop_image_dataset,
@@ -222,9 +204,29 @@ hash_splitter = HashSplitter(
 # Batch size is arbitrary here, it is just to sample images, which won't change with batch_size
 _, val_dataloader, _ = hash_splitter(batch_size=10)
 
-image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=300)()
+# Select image crops to save after each epoch
+crop_dataset_idxs = SampleImages(datastruct=val_dataloader, number_of_images=300)()
 
+# This mapping depends on the instance to semantic segmentation code
 mask_idx_mapping = {0: "background", 1: "inner-cell", 2: "cell-boundary"}
+
+image_prediction_saver = SaveEpochSlices(
+    image_dataset=val_dataloader.dataset.dataset,
+    mask_idx_mapping=mask_idx_mapping,
+    image_postprocessor=image_postprocessor,
+    image_dataset_idxs=crop_dataset_idxs,
+)
+
+unique_crop_dataset_idxs = select_unique_image_idxs(
+    image_dataset_idxs=crop_dataset_idxs, image_dataset=crop_image_dataset
+)
+
+# Select images to save after each epoch from the unique crop dataset indices
+image_dataset_idxs = SampleImages(
+    datastruct=crop_image_dataset,
+    number_of_images=5,
+    dataset_idxs=unique_crop_dataset_idxs,
+)()
 
 whole_image_saver = SaveWholeSlices(
     image_dataset=whole_image_dataset,
@@ -235,13 +237,6 @@ whole_image_saver = SaveWholeSlices(
     mask_idx_mapping=mask_idx_mapping,
     pad_mode="reflect",
     image_postprocessor=image_postprocessor,
-)
-
-image_prediction_saver = SaveEpochSlices(
-    image_dataset=val_dataloader.dataset.dataset,
-    mask_idx_mapping=mask_idx_mapping,
-    image_postprocessor=image_postprocessor,
-    image_dataset_idxs=image_dataset_idxs,
 )
 
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
@@ -264,15 +259,11 @@ optimization_manager = OptimizationManager(
     dataset=crop_image_dataset,
     callbacks_args=callbacks_args,
     model=unet,
-    epochs=2,  # 30,
-    device=device,
+    epochs=30,
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
-study.optimize(
-    optimization_manager,
-    n_trials=1,
-)  # 6)
+study.optimize(optimization_manager, n_trials=6)
 
 # |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
 
