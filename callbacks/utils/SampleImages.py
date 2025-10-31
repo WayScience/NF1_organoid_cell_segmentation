@@ -13,24 +13,23 @@ class SampleImages:
     def __init__(
         self,
         datastruct: Union[Dataset, DataLoader],
-        number_of_images: int,
+        image_fraction: float,
         dataset_idxs: Optional[list[int]] = None,
     ) -> None:
 
         self.is_dataset = dataset_idxs is not None
         self.datastruct = datastruct
-        self.number_of_images = number_of_images
         self.dataset_idxs = dataset_idxs
         self.divisor = 10**6
 
         if self.is_dataset:
             self.original_data_split = self.datastruct.split_data
             self.datastruct.split_data = True
-            image_fraction = self.number_of_images / len(dataset_idxs)
         else:
             self.original_data_split = self.datastruct.dataset.dataset.split_data
             self.datastruct.dataset.dataset.split_data = True
-            image_fraction = self.number_of_images / len(self.datastruct.dataset)
+
+        image_fraction = min(1.0, image_fraction)
 
         self.upper_thresh = int(self.divisor * image_fraction)
 

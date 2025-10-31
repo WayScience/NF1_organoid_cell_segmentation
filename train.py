@@ -130,9 +130,18 @@ r"""°°°
 root_data_path = pathlib.Path("big_drive/NF1_organoid_processed_patients").resolve(
     strict=True
 )
-patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
 
-# |%%--%%| <uHCF3KHHYz|9NUAycuR83>
+# Removed NF0014 because it has the fewest number of FOVs and
+# it will be the holdout patient
+patient_folders = [
+    p for p in root_data_path.iterdir() if p.is_dir() and "NF0014" not in p.name
+]
+
+# |%%--%%| <uHCF3KHHYz|SKoIh6x1Kr>
+
+patient_folders
+
+# |%%--%%| <SKoIh6x1Kr|9NUAycuR83>
 
 device = torch.device("cuda")
 random.seed(0)
@@ -205,7 +214,7 @@ hash_splitter = HashSplitter(
 _, val_dataloader, _ = hash_splitter(batch_size=10)
 
 # Select image crops to save after each epoch
-crop_dataset_idxs = SampleImages(datastruct=val_dataloader, number_of_images=300)()
+crop_dataset_idxs = SampleImages(datastruct=val_dataloader, image_fraction=1 / 512)()
 
 # This mapping depends on the instance to semantic segmentation code
 mask_idx_mapping = {0: "background", 1: "inner-cell", 2: "cell-boundary"}
@@ -224,7 +233,7 @@ unique_crop_dataset_idxs = select_unique_image_idxs(
 # Select images to save after each epoch from the unique crop dataset indices
 image_dataset_idxs = SampleImages(
     datastruct=crop_image_dataset,
-    number_of_images=5,
+    image_fraction=1 / 2,
     dataset_idxs=unique_crop_dataset_idxs,
 )()
 
