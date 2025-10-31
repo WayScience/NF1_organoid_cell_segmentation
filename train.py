@@ -93,7 +93,6 @@ class OptimizationManager:
             ),
             ConfusionMetrics(
                 mask_idx_mapping=mask_idx_mapping,
-                use_logits=False,
                 prediction_threshold=0.5,
                 device=device,
             ),
@@ -272,7 +271,7 @@ optimization_manager = OptimizationManager(
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
-study.optimize(optimization_manager, n_trials=6)
+study.optimize(optimization_manager, n_trials=4)
 
 # |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
 
