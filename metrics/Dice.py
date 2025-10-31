@@ -85,13 +85,8 @@ class Dice(AbstractMetric):
 
         batch_size, num_channels, z_slices = generated_predictions.shape[:3]
 
-        probs = (
-            torch.sigmoid(generated_predictions)
-            if self.use_logits
-            else generated_predictions
-        )
         preds_flat = (
-            (probs > self.prediction_threshold)
+            (generated_predictions > self.prediction_threshold)
             .float()
             .view(batch_size, num_channels, z_slices, -1)
         )

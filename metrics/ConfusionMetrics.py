@@ -36,6 +36,9 @@ class ConfusionMetrics(AbstractMetric):
 
         self.prediction_threshold = prediction_threshold
         self.device = torch.device(device)
+
+        # For ensuring that the generated prediction are passed as probabilities in callbacks
+        self.use_logits = False
         self.reset()
 
     def reset(self):
