@@ -33,11 +33,14 @@ class UNetTrainer:
         self.callbacks = callbacks
         self.image_postprocessor = image_postprocessor
         self.epochs = epochs
-        self.device = device
+        self.device = torch.device(device)
         self.use_amp = use_amp  # Automatic Mixed Precision (AMP)
 
-        if self.use_amp and self.device.startswith("cuda"):
-            self.scaler = torch.amp.GradScaler("cuda")
+        if self.use_amp:
+            if self.device.type == "cuda":
+                self.scaler = torch.amp.GradScaler("cuda")
+            else:
+                self.scaler = torch.amp.GradScaler("cpu")
         else:
             self.scaler = None
 
@@ -48,7 +51,6 @@ class UNetTrainer:
     def train(self) -> None:
         train_data = {}
         train_data["continue_training"] = True
-        train_data["use_amp"] = self.use_amp
         train_data["device"] = self.device
 
         self.model = self.model.to(self.device)
@@ -72,16 +74,9 @@ class UNetTrainer:
                 inputs = batch_data["input"].to(self.device)
                 targets = batch_data["target"].to(self.device)
 
-                if self.use_amp and self.scaler is not None:
-                    with torch.amp.autocast("cuda"):
-                        generated_predictions = self.image_postprocessor(
-                            self.model(inputs)
-                        )
-                        loss = self.model_loss(
-                            targets=targets,
-                            generated_predictions=generated_predictions,
-                        )
-                else:
+                with torch.amp.autocast(
+                    enabled=self.use_amp, device_type=self.device.type
+                ):
                     generated_predictions = self.image_postprocessor(self.model(inputs))
                     loss = self.model_loss(
                         targets=targets,
@@ -106,11 +101,12 @@ class UNetTrainer:
                 self.callbacks(**train_data)
 
             train_data["callback_hook"] = "on_epoch_end"
-            train_data["continue_training"] = self.callbacks(
-                train_dataloader=self.train_dataloader,
-                val_dataloader=self.val_dataloader,
-                **train_data,
-            )
+            with torch.amp.autocast(enabled=self.use_amp, device_type=self.device.type):
+                train_data["continue_training"] = self.callbacks(
+                    train_dataloader=self.train_dataloader,
+                    val_dataloader=self.val_dataloader,
+                    **train_data,
+                )
 
             if not train_data["continue_training"]:
                 break
