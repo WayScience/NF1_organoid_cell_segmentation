@@ -19,7 +19,7 @@ class ImagePreProcessor:
         target_transform: Optional[callable] = None,
     ):
         self.image_specs = image_specs
-        self.device = device
+        self.device = torch.device(device)
         self.crop_margin = image_specs["crop_margin"]
         self.input_transform = input_transform
         self.target_transform = target_transform
