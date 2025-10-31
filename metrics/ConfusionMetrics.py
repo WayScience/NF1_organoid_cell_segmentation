@@ -113,7 +113,7 @@ class ConfusionMetrics(AbstractMetric):
         metrics[f"recall_total_{self.data_split_logging}"] = recall_total
 
         for mask_idx, mask_name in self.mask_idx_mapping.items():
-            key = f"{mask_name}_component_{self.data_split_logging}"
+            key = f"{mask_name}_{self.data_split_logging}"
             precision_key = f"precision_{key}"
             recall_key = f"recall_{key}"
             metrics[precision_key] = precision[mask_idx]

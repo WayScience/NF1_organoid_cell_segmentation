@@ -42,7 +42,6 @@ class Dice(AbstractMetric):
                 "The mask index mapping must be defined if Dice is used as a loss."
             )
 
-
         self.mask_weights_sum = self.mask_weights.sum()
 
         self.smooth = smooth
@@ -126,20 +125,22 @@ class Dice(AbstractMetric):
         )
         average_iou = (self.mask_weights * total_iou).sum() / self.mask_weights_sum
 
-        prefix = "loss_" if self.is_loss else ""
-        key_dice = f"dice_total_{prefix}{self.data_split_logging}"
+        base_prefix = "_loss_" if self.is_loss else "_"
+        component_prefix = f"{base_prefix}component_" if self.is_loss else "_"
 
-        key_iou = f"iou_total_component_{self.data_split_logging}"
-
-        metrics = {key_dice: average_dice, key_iou: average_iou}
+        metrics = {
+            f"dice_total{base_prefix}{self.data_split_logging}": average_dice,
+            f"iou_total_{self.data_split_logging}": average_iou,
+        }
 
         for mask_idx, mask_name in self.mask_idx_mapping.items():
-            metrics[f"iou_{mask_name}_component_{self.data_split_logging}"] = total_iou[
-                mask_idx
-            ]
-            metrics[f"dice_{mask_name}_loss_component_{self.data_split_logging}"] = (
-                total_dice[mask_idx]
+            metrics.update(
+                {
+                    f"iou_{mask_name}_{self.data_split_logging}": total_iou[mask_idx],
+                    f"dice_{mask_name}{component_prefix}{self.data_split_logging}": total_dice[
+                        mask_idx
+                    ],
+                }
             )
-
         self.reset()
         return metrics

@@ -116,26 +116,27 @@ class BCE(AbstractMetric):
         )
 
         metrics = {}
-        key = "loss_" if self.is_loss else ""
+        base_prefix = "_loss_" if self.is_loss else "_"
+        component_prefix = f"{base_prefix}component_" if self.is_loss else "_"
 
         if self.total_elements > 0:
-            metrics[f"bce_total_{key}{self.data_split_logging}"] = (
-                self.mask_weights * self.total_loss
-            ).sum() / (3 * self.total_elements)
-
-            for mask_idx, mask_name in self.mask_idx_mapping.items():
-                metrics[f"bce_{mask_name}_{key}component_{self.data_split_logging}"] = (
-                    average_loss[mask_idx]
-                )
-        else:
-            metrics[f"bce_total_{key}{self.data_split_logging}"] = torch.zeros(
-                3, device=self.device
+            bce_total = (self.mask_weights * self.total_loss).sum() / (
+                3 * self.total_elements
             )
+        else:
+            bce_total = torch.zeros(3, device=self.device)
 
-            for mask_name in self.mask_idx_mapping.values():
-                metrics[f"bce_{mask_name}_{key}component_{self.data_split_logging}"] = (
-                    torch.zeros(1, device=self.device)
-                )
+        metrics[f"bce_total{base_prefix}{self.data_split_logging}"] = bce_total
+
+        for mask_idx, mask_name in self.mask_idx_mapping.items():
+            if self.total_elements > 0:
+                value = average_loss[mask_idx]
+            else:
+                value = torch.zeros(1, device=self.device)
+
+            metrics[f"bce_{mask_name}{component_prefix}{self.data_split_logging}"] = (
+                value
+            )
 
         self.reset()
         return metrics
