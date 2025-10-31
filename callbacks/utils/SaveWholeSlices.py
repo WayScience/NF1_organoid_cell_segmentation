@@ -1,4 +1,5 @@
 import pathlib
+import time
 from typing import Any, Optional
 
 import numpy as np
@@ -38,26 +39,8 @@ class SaveWholeSlices:
         self.image_postprocessor = image_postprocessor
         self.local_save_path = local_save_path
 
-        self.unique_image_dataset_idxs = []
-        self.reduce_dataset_idxs(image_dataset=image_dataset)
-
         self.pad_width, self.original_crop_coords = None, None
         self.epoch = None
-
-    def reduce_dataset_idxs(self, image_dataset: torch.utils.data.Dataset):
-        """
-        For reducing the dataset to only unique indices.
-        We don't want to save redundant images.
-        Dataset indices reflect crop samples, and not whole image samples prior to this function.
-        """
-        self.unique_image_dataset_idxs = []
-
-        for sample_idx in self.image_dataset_idxs:
-            if (
-                image_dataset[sample_idx]["metadata"]["Metadata_ID"]
-                not in self.unique_image_dataset_idxs
-            ):
-                self.unique_image_dataset_idxs.append(sample_idx)
 
     def predict_target(
         self, padded_image: torch.Tensor, model: torch.nn.Module
@@ -162,11 +145,11 @@ class SaveWholeSlices:
         )
 
         if self.local_save_path is None:
-            save_func = save_image_locally
+            save_func = save_image_mlflow
 
         else:
             save_image_path_folder = self.local_save_path / save_image_path_folder
-            save_func = save_image_mlflow
+            save_func = save_image_locally
 
         if image_type == "input":
             filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
@@ -195,10 +178,11 @@ class SaveWholeSlices:
     ) -> None:
 
         self.epoch = epoch
-        for sample_idx in self.unique_image_dataset_idxs:
+        for sample_idx in self.image_dataset_idxs:
 
+            image_sample = self.image_dataset[sample_idx]
             self.image_specs["image_shape"][0] = tifffile.imread(
-                self.image_dataset[sample_idx]["input_path"]
+                image_sample["input_path"]
             ).shape[0]
 
             # For computing image padding and original crop coordinates
@@ -213,9 +197,9 @@ class SaveWholeSlices:
             )
 
             sample_image = self.save_image(
-                image_path=self.image_dataset[sample_idx]["target_path"],
+                image_path=image_sample["target_path"],
                 image_type="target",
-                image=self.image_dataset[sample_idx]["target"],
+                image=image_sample["target"],
             )
 
             # Only save these images if the segmentation mask isn't black
@@ -223,22 +207,21 @@ class SaveWholeSlices:
             # which will present regardless of weather or not the whole segmented image
             # is black or not.
             if sample_image:
-                padded_image = self.pad_image(
-                    input_image=self.image_dataset[sample_idx]["input"]
-                )
+                padded_image = self.pad_image(input_image=image_sample["input"])
 
+                prediction_start_time = time.perf_counter()
                 generated_prediction = self.predict_target(
                     padded_image=padded_image, model=model
                 )
 
                 self.save_image(
-                    image_path=self.image_dataset[sample_idx]["input_path"],
+                    image_path=image_sample["input_path"],
                     image_type="input",
-                    image=self.image_dataset[sample_idx]["input"],
+                    image=image_sample["input"],
                 )
 
                 self.save_image(
-                    image_path=self.image_dataset[sample_idx]["target_path"],
+                    image_path=image_sample["target_path"],
                     image_type="generated-prediction",
                     image=generated_prediction,
                 )
