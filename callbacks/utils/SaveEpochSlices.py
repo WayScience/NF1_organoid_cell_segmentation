@@ -70,12 +70,10 @@ class SaveEpochSlices:
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
-        save_image_path_folder = f"cropped_images/epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}"
+        save_image_path_folder = f"cropped_images/epoch_{self.epoch:02}/{patient_name}/{fov_well_name}/{input_slices_name}__{target_slices_name}/{crop_name}"
 
         if image_type == "input":
-            image_filename = (
-                f"3D_{image_type}_{image_path.stem}__{crop_name}__{image_suffix}"
-            )
+            image_filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
             save_image_mlflow(
                 image=image,
                 save_image_path_folder=save_image_path_folder,
@@ -83,7 +81,9 @@ class SaveEpochSlices:
             )
         else:
             for mask_idx, mask_name in self.mask_idx_mapping.items():
-                image_filename = f"3D_{image_type}_{mask_name}_{image_path.stem}__{crop_name}__{image_suffix}"
+                image_filename = (
+                    f"3D_{image_type}_{mask_name}_{image_path.stem}{image_suffix}"
+                )
                 save_image_mlflow(
                     image=image[mask_idx],
                     save_image_path_folder=save_image_path_folder,
