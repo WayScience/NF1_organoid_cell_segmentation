@@ -75,7 +75,15 @@ with tempfile.TemporaryDirectory() as tmpdir:
     tiff_to_zarr(
         image_dir=save_path.parent,
         output_path=temp_zarr_dir_path / "output.zarr",
-        channel_map={"TRANS": "brightfield"},
+        channel_map={
+            "TRANS": "Brightfield",
+            "prediction_background": "Predicted Background Probabilities",
+            "prediction_cell": "Predicted Cell Boundary Probabilities",
+            "prediction_inner": "Predicted Inner-Cell Probabilities",
+            "target_background": "Target Background Segmentation",
+            "target_cell": "Target Cell Boundary Segmentation",
+            "target_inner": "Target Inner-Cell Segmentation",
+        },
         scaling_values=scaling_values,
     )
 
