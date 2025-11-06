@@ -33,7 +33,9 @@ class UNetTrainer:
         self.callbacks = callbacks
         self.image_postprocessor = image_postprocessor
         self.epochs = epochs
-        self.device = torch.device(device)
+        self.device = (
+            device if isinstance(device, torch.device) else torch.device(device)
+        )
         self.use_amp = use_amp  # Automatic Mixed Precision (AMP)
 
         if self.use_amp:

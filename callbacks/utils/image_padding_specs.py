@@ -63,9 +63,13 @@ def compute_patch_mapping(
         A tuple of two elements:
         - Padding Amounts: ((z_before, z_after), (h_before, h_after), (w_before, w_after))
             Amount of reflection padding applied to each dimension.
-        - Original Crop Coordinates: (slice_z, slice_h, slice_w)
+            Padding is applied before converting instance segmentations to semantic segmentation masks.
+            Therefore, there is no need to specify zero padding for the semantic mask channel.
+        - Original Crop Coordinates: (slice(None), slice_z, slice_h, slice_w)
             Slice objects that can be used to recover
             the original unpadded image from the padded one.
+            There should be no slicing of semantic maps, so the first dimension will
+            be discounted.
     """
 
     padding_slices = tuple([crop_shape[0] // 2] * 2) if pad_slices else (0, 0)

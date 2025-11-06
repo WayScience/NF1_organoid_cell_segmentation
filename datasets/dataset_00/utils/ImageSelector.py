@@ -62,7 +62,9 @@ class ImageSelector:
 
         self.input_neighbors_per_side = self.input_crop_shape[0] // 2
         self.target_neighbors_per_side = self.target_crop_shape[0] // 2
-        self.device = torch.device(device)
+        self.device = (
+            device if isinstance(device, torch.device) else torch.device(device)
+        )
 
         if self.input_crop_shape[0] % 2 == 0:
             raise ValueError("The model only accepts an odd number of slices")

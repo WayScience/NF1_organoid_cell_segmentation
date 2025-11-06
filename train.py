@@ -53,6 +53,9 @@ class OptimizationManager:
         self.trainer_kwargs = trainer_kwargs
 
     def __call__(self, trial):
+        """
+        mask_idx_mapping is a global variable.
+        """
         batch_size = trial.suggest_int("batch_size", 1, 18)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
 
@@ -136,11 +139,7 @@ patient_folders = [
     p for p in root_data_path.iterdir() if p.is_dir() and "NF0014" not in p.name
 ]
 
-# |%%--%%| <uHCF3KHHYz|SKoIh6x1Kr>
-
-patient_folders
-
-# |%%--%%| <SKoIh6x1Kr|9NUAycuR83>
+# |%%--%%| <uHCF3KHHYz|9NUAycuR83>
 
 device = torch.device("cuda")
 random.seed(0)

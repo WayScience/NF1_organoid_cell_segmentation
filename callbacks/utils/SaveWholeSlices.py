@@ -204,7 +204,7 @@ class SaveWholeSlices:
 
             # Only save these images if the segmentation mask isn't black
             # We expect the model to generate black segmentation crops,
-            # which will present regardless of weather or not the whole segmented image
+            # which will present regardless of whether or not the whole segmented image
             # is black or not.
             if sample_image:
                 padded_image = self.pad_image(input_image=image_sample["input"])

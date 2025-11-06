@@ -14,12 +14,14 @@ class ImagePreProcessor:
     def __init__(
         self,
         image_specs: dict[str, Any],
-        device: str = "cuda",
+        device: Union[str, torch.device] = "cuda",
         input_transform: Optional[callable] = None,
         target_transform: Optional[callable] = None,
     ):
         self.image_specs = image_specs
-        self.device = torch.device(device)
+        self.device = (
+            device if isinstance(device, torch.device) else torch.device(device)
+        )
         self.crop_margin = image_specs["crop_margin"]
         self.input_transform = input_transform
         self.target_transform = target_transform

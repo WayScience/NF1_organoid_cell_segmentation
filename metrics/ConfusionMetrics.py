@@ -35,7 +35,9 @@ class ConfusionMetrics(AbstractMetric):
         self.mask_weights_sum = self.mask_weights.sum()
 
         self.prediction_threshold = prediction_threshold
-        self.device = torch.device(device)
+        self.device = (
+            device if isinstance(device, torch.device) else torch.device(device)
+        )
 
         # For ensuring that the generated prediction are passed as probabilities in callbacks
         self.use_logits = False
