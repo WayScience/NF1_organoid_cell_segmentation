@@ -129,9 +129,14 @@ r"""°°°
 °°°"""
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
-root_data_path = pathlib.Path("big_drive/NF1_organoid_processed_patients").resolve(
+big_drive_path = pathlib.Path("big_drive")
+root_data_path = (big_drive_path / "NF1_organoid_processed_patients").resolve(
     strict=True
 )
+
+cache_image_path = big_drive_path / "cached_NF1_organoid_processed_patients"
+crop_image_cache_path = cache_image_path / "crop_image_cache"
+whole_image_cache_path = cache_image_path / "whole_image_cache"
 
 # Removed NF0014 because it has the fewest number of FOVs and
 # it will be the holdout patient
@@ -192,12 +197,14 @@ crop_image_dataset = CellSlicetoSliceDataset(
     image_specs=image_specs,
     image_selector=img_selector,
     image_preprocessor=crop_image_preprocessor,
+    image_cache_path=crop_image_cache_path,
 )
 
 whole_image_dataset = AllSlicesDataset(
     dataset=crop_image_dataset,
     image_specs=image_specs,
     image_preprocessor=whole_image_preprocessor,
+    image_cache_path=whole_image_cache_path,
 )
 
 # |%%--%%| <muTDx2W917|Ljn54YK9d8>
