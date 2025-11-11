@@ -34,6 +34,7 @@ class CellSlicetoSliceDataset(Dataset):
         self.image_cache_path = image_cache_path
 
         self.split_data = False
+        self.processing_data = None
 
         self.input_image_name = (
             "input_image.tiff" if input_image_name is None else input_image_name
