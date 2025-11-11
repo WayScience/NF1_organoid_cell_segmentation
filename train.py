@@ -56,7 +56,7 @@ class OptimizationManager:
         """
         mask_idx_mapping is a global variable.
         """
-        batch_size = trial.suggest_int("batch_size", 1, 18)
+        batch_size = trial.suggest_int("batch_size", 4, 13)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
 
         train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
