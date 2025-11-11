@@ -166,7 +166,9 @@ class CellSlicetoSliceDataset(Dataset):
             "input": input_image,
             "target": target_image,
             "metadata": self.metadata,
-            "processing_metadata": self.processing_data,
+            "processing_metadata": (
+                {} if self.processing_data is None else self.processing_data
+            ),
             "input_path": self.input_path,
             "target_path": self.target_path,
         }
