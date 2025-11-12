@@ -164,7 +164,7 @@ class SaveWholeSlices:
                     f"3D_{image_type}_{mask_name}_{image_path.stem}{image_suffix}"
                 )
                 save_func(
-                    image=image[mask_idx],
+                    image=image[mask_idx, ::],
                     save_image_path_folder=save_image_path_folder,
                     image_filename=filename,
                 )
