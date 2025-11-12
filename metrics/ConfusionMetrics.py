@@ -111,15 +111,15 @@ class ConfusionMetrics(AbstractMetric):
             torch.tensor(0.0, device=self.device),
         )
 
-        metrics[f"precision_total_{self.data_split_logging}"] = precision_total
-        metrics[f"recall_total_{self.data_split_logging}"] = recall_total
+        metrics[f"precision_total_{self.data_split_logging}"] = precision_total.item()
+        metrics[f"recall_total_{self.data_split_logging}"] = recall_total.item()
 
         for mask_idx, mask_name in self.mask_idx_mapping.items():
             key = f"{mask_name}_{self.data_split_logging}"
             precision_key = f"precision_{key}"
             recall_key = f"recall_{key}"
-            metrics[precision_key] = precision[mask_idx]
-            metrics[recall_key] = recall[mask_idx]
+            metrics[precision_key] = precision[mask_idx].item()
+            metrics[recall_key] = recall[mask_idx].item()
 
         self.reset()
         return metrics

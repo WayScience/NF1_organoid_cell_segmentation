@@ -111,7 +111,6 @@ class Dice(AbstractMetric):
         return None
 
     def get_metric_data(self) -> dict[str, torch.Tensor]:
-        total_dice = (2.0 * self.total_intersection) / self.total_denominator
         total_dice = torch.where(
             self.total_denominator != 0,
             (2.0 * self.total_intersection) / self.total_denominator,
@@ -131,17 +130,19 @@ class Dice(AbstractMetric):
         component_prefix = f"{base_prefix}component_" if self.is_loss else "_"
 
         metrics = {
-            f"dice_total{base_prefix}{self.data_split_logging}": average_dice,
-            f"iou_total_{self.data_split_logging}": average_iou,
+            f"dice_total{base_prefix}{self.data_split_logging}": average_dice.item(),
+            f"iou_total_{self.data_split_logging}": average_iou.item(),
         }
 
         for mask_idx, mask_name in self.mask_idx_mapping.items():
             metrics.update(
                 {
-                    f"iou_{mask_name}_{self.data_split_logging}": total_iou[mask_idx],
+                    f"iou_{mask_name}_{self.data_split_logging}": total_iou[
+                        mask_idx
+                    ].item(),
                     f"dice_{mask_name}{component_prefix}{self.data_split_logging}": total_dice[
                         mask_idx
-                    ],
+                    ].item(),
                 }
             )
         self.reset()

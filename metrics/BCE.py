@@ -128,7 +128,7 @@ class BCE(AbstractMetric):
         else:
             bce_total = torch.zeros(3, device=self.device)
 
-        metrics[f"bce_total{base_prefix}{self.data_split_logging}"] = bce_total
+        metrics[f"bce_total{base_prefix}{self.data_split_logging}"] = bce_total.item()
 
         for mask_idx, mask_name in self.mask_idx_mapping.items():
             if self.total_elements > 0:
@@ -137,7 +137,7 @@ class BCE(AbstractMetric):
                 value = torch.zeros(1, device=self.device)
 
             metrics[f"bce_{mask_name}{component_prefix}{self.data_split_logging}"] = (
-                value
+                value.item()
             )
 
         self.reset()
