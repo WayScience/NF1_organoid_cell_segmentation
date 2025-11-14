@@ -13,20 +13,40 @@ class ConfusionMetrics(AbstractMetric):
 
     def __init__(
         self,
+        mask_idx_mapping: dict[int, str],
+        mask_weights: Optional[torch.Tensor] = None,
         prediction_threshold: float = 0.5,
-        use_logits: bool = True,
         device: Union[str, torch.device] = "cuda",
+        **kwargs,
     ):
         super().__init__()
+
+        self.mask_idx_mapping = mask_idx_mapping
+
+        self.mask_weights = (
+            torch.ones(3, device=device) if mask_weights is None else mask_weights
+        )
+
+        if self.mask_weights.ndim != 1 or self.mask_weights.shape[0] != 3:
+            raise ValueError(
+                "The mask_weights torch tensor must have one dimension with three weights."
+            )
+
+        self.mask_weights_sum = self.mask_weights.sum()
+
         self.prediction_threshold = prediction_threshold
-        self.use_logits = use_logits
-        self.device = device
+        self.device = (
+            device if isinstance(device, torch.device) else torch.device(device)
+        )
+
+        # For ensuring that the generated prediction are passed as probabilities in callbacks
+        self.use_logits = False
         self.reset()
 
     def reset(self):
-        self.true_positives = torch.tensor(0.0, device=self.device)
-        self.false_positives = torch.tensor(0.0, device=self.device)
-        self.false_negatives = torch.tensor(0.0, device=self.device)
+        self.true_positives = torch.zeros(3, device=self.device)
+        self.false_positives = torch.zeros(3, device=self.device)
+        self.false_negatives = torch.zeros(3, device=self.device)
 
     def forward(
         self,
@@ -41,16 +61,15 @@ class ConfusionMetrics(AbstractMetric):
                 "The generated predictions and targets must be the same shape."
             )
 
-        probs = (
-            torch.sigmoid(generated_predictions)
-            if self.use_logits
-            else generated_predictions
-        )
-        preds = (probs > self.prediction_threshold).float()
+        if generated_predictions.ndim == 4:
+            generated_predictions = generated_predictions.unsqueeze(0)
+            targets = targets.unsqueeze(0)
 
-        tp = (preds * targets).sum()
-        fp = (preds * (1 - targets)).sum()
-        fn = ((1 - preds) * targets).sum()
+        preds = (generated_predictions > self.prediction_threshold).float()
+
+        tp = (preds * targets).sum(dim=(0, 2, 3, 4))
+        fp = (preds * (1 - targets)).sum(dim=(0, 2, 3, 4))
+        fn = ((1 - preds) * targets).sum(dim=(0, 2, 3, 4))
 
         self.data_split_logging = data_split_logging
 
@@ -61,20 +80,46 @@ class ConfusionMetrics(AbstractMetric):
         return None
 
     def get_metric_data(self) -> dict[str, torch.Tensor]:
-        precision = (
-            self.true_positives / (self.true_positives + self.false_positives)
-            if (self.true_positives + self.false_positives) > 0
-            else torch.tensor(0.0, device=self.device)
+
+        metrics = {}
+
+        precision = torch.where(
+            self.true_positives + self.false_positives != 0,
+            self.true_positives / (self.true_positives + self.false_positives),
+            torch.tensor(0.0, device=self.device),
         )
 
-        recall = (
-            self.true_positives / (self.true_positives + self.false_negatives)
-            if (self.true_positives + self.false_negatives) > 0
-            else torch.tensor(0.0, device=self.device)
+        recall = torch.where(
+            self.true_positives + self.false_negatives != 0,
+            self.true_positives / (self.true_positives + self.false_negatives),
+            torch.tensor(0.0, device=self.device),
         )
 
-        key_precision = f"precision__{self.data_split_logging}"
-        key_recall = f"recall__{self.data_split_logging}"
+        tp_total = (self.mask_weights * self.true_positives).sum()
+        fp_total = (self.mask_weights * self.false_positives).sum()
+        fn_total = (self.mask_weights * self.false_negatives).sum()
+
+        precision_total = torch.where(
+            (tp_total + fp_total) != 0,
+            tp_total / (tp_total + fp_total),
+            torch.tensor(0.0, device=self.device),
+        )
+
+        recall_total = torch.where(
+            (tp_total + fn_total) != 0,
+            tp_total / (tp_total + fn_total),
+            torch.tensor(0.0, device=self.device),
+        )
+
+        metrics[f"precision_total_{self.data_split_logging}"] = precision_total.item()
+        metrics[f"recall_total_{self.data_split_logging}"] = recall_total.item()
+
+        for mask_idx, mask_name in self.mask_idx_mapping.items():
+            key = f"{mask_name}_{self.data_split_logging}"
+            precision_key = f"precision_{key}"
+            recall_key = f"recall_{key}"
+            metrics[precision_key] = precision[mask_idx].item()
+            metrics[recall_key] = recall[mask_idx].item()
 
         self.reset()
-        return {key_precision: precision, key_recall: recall}
+        return metrics

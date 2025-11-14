@@ -1,4 +1,5 @@
 import pathlib
+import time
 from typing import Any, Optional
 
 import numpy as np
@@ -22,6 +23,7 @@ class SaveWholeSlices:
         image_specs: dict[str, Any],
         stride: tuple[int],
         crop_shape: tuple[int],
+        mask_idx_mapping: dict[int, str],
         pad_mode="reflect",
         image_postprocessor: Any = lambda x: x,
         local_save_path: Optional[pathlib.Path] = None,
@@ -32,30 +34,13 @@ class SaveWholeSlices:
         self.image_specs = image_specs
         self.stride = stride
         self.crop_shape = crop_shape
+        self.mask_idx_mapping = mask_idx_mapping
         self.pad_mode = pad_mode
         self.image_postprocessor = image_postprocessor
         self.local_save_path = local_save_path
 
-        self.unique_image_dataset_idxs = []
-        self.reduce_dataset_idxs(image_dataset=image_dataset)
-
         self.pad_width, self.original_crop_coords = None, None
         self.epoch = None
-
-    def reduce_dataset_idxs(self, image_dataset: torch.utils.data.Dataset):
-        """
-        For reducing the dataset to only unique indices.
-        We don't want to save redundant images.
-        Dataset indices reflect crop samples, and not whole image samples prior to this function.
-        """
-        self.unique_image_dataset_idxs = []
-
-        for sample_idx in self.image_dataset_idxs:
-            if (
-                image_dataset[sample_idx]["metadata"]["Metadata_ID"]
-                not in self.unique_image_dataset_idxs
-            ):
-                self.unique_image_dataset_idxs.append(sample_idx)
 
     def predict_target(
         self, padded_image: torch.Tensor, model: torch.nn.Module
@@ -69,7 +54,7 @@ class SaveWholeSlices:
         """
 
         output = torch.zeros(
-            *padded_image.shape,
+            (3, *padded_image.shape),
             dtype=torch.float32,
             device=padded_image.device,
         )
@@ -94,8 +79,9 @@ class SaveWholeSlices:
                     generated_prediction=model(crop)
                 ).squeeze(0)
 
-            output[slices] += generated_prediction
-            weight[slices] += 1.0
+            all_slices = (slice(None), *slices)
+            output[all_slices] += generated_prediction
+            weight[all_slices] += 1.0
 
         output /= weight
 
@@ -148,8 +134,6 @@ class SaveWholeSlices:
 
         image_suffix = ".tiff" if ".tif" in image_path.suffix else image_path.suffix
 
-        filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
-
         fov_well_name = image_path.parent.name
         patient_name = image_path.parents[2].name
 
@@ -161,18 +145,29 @@ class SaveWholeSlices:
         )
 
         if self.local_save_path is None:
-            save_image_mlflow(
+            save_func = save_image_mlflow
+
+        else:
+            save_image_path_folder = self.local_save_path / save_image_path_folder
+            save_func = save_image_locally
+
+        if image_type == "input":
+            filename = f"3D_{image_type}_{image_path.stem}{image_suffix}"
+            save_func(
                 image=image,
                 save_image_path_folder=save_image_path_folder,
                 image_filename=filename,
             )
         else:
-            save_image_path_folder = self.local_save_path / save_image_path_folder
-            save_image_locally(
-                image=image,
-                save_image_path_folder=save_image_path_folder,
-                image_filename=filename,
-            )
+            for mask_idx, mask_name in self.mask_idx_mapping.items():
+                filename = (
+                    f"3D_{image_type}_{mask_name}_{image_path.stem}{image_suffix}"
+                )
+                save_func(
+                    image=image[mask_idx, ::],
+                    save_image_path_folder=save_image_path_folder,
+                    image_filename=filename,
+                )
 
         return True
 
@@ -183,10 +178,11 @@ class SaveWholeSlices:
     ) -> None:
 
         self.epoch = epoch
-        for sample_idx in self.unique_image_dataset_idxs:
+        for sample_idx in self.image_dataset_idxs:
 
+            image_sample = self.image_dataset[sample_idx]
             self.image_specs["image_shape"][0] = tifffile.imread(
-                self.image_dataset[sample_idx]["input_path"]
+                image_sample["input_path"]
             ).shape[0]
 
             # For computing image padding and original crop coordinates
@@ -201,32 +197,31 @@ class SaveWholeSlices:
             )
 
             sample_image = self.save_image(
-                image_path=self.image_dataset[sample_idx]["target_path"],
+                image_path=image_sample["target_path"],
                 image_type="target",
-                image=self.image_dataset[sample_idx]["target"],
+                image=image_sample["target"],
             )
 
             # Only save these images if the segmentation mask isn't black
             # We expect the model to generate black segmentation crops,
-            # which will present regardless of weather or not the whole segmented image
+            # which will present regardless of whether or not the whole segmented image
             # is black or not.
             if sample_image:
-                padded_image = self.pad_image(
-                    input_image=self.image_dataset[sample_idx]["input"]
-                )
+                padded_image = self.pad_image(input_image=image_sample["input"])
 
+                prediction_start_time = time.perf_counter()
                 generated_prediction = self.predict_target(
                     padded_image=padded_image, model=model
                 )
 
                 self.save_image(
-                    image_path=self.image_dataset[sample_idx]["input_path"],
+                    image_path=image_sample["input_path"],
                     image_type="input",
-                    image=self.image_dataset[sample_idx]["input"],
+                    image=image_sample["input"],
                 )
 
                 self.save_image(
-                    image_path=self.image_dataset[sample_idx]["target_path"],
+                    image_path=image_sample["target_path"],
                     image_type="generated-prediction",
                     image=generated_prediction,
                 )

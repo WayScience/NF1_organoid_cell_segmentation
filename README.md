@@ -12,7 +12,7 @@ Each model's code is tracked within git's commit comment history. A trained mode
 Each model is trained by executing `train.py` from the MLproject file so the results can be logged to MLflow. The paths inside `train.py` are needed to create the dataset for training the model.
 
 ## Model Descriptions
-All models will be trained with Experiment ID: 310992065458859481
+All models below were trained with Experiment ID: 310992065458859481
 
 These are the models developed in reverse chronological order:
 

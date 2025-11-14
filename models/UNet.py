@@ -114,4 +114,4 @@ class UNet(nn.Module):
         xup = self.up_convs["up_conv3"](xup)
 
         logits = self.outc(xup)
-        return logits
+        return logits.unsqueeze(2)  # Adds a z-dimension

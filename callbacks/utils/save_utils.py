@@ -8,7 +8,7 @@ import torch
 
 
 def save_image_mlflow(
-    image: torch.Tensor,
+    image: np.ndarray,
     save_image_path_folder: str,
     image_filename: str,
 ) -> None:
@@ -21,7 +21,7 @@ def save_image_mlflow(
 
 
 def save_image_locally(
-    image: torch.Tensor,
+    image: np.ndarray,
     save_image_path_folder: str,
     image_filename: str,
 ) -> None:

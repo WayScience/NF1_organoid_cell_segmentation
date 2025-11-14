@@ -1,5 +1,8 @@
 import pathlib
 import random
+import sys
+
+sys.path.append("utils")
 from typing import Any
 
 import joblib
@@ -19,6 +22,7 @@ from datasets.dataset_00.utils.ImagePostProcessor import ImagePostProcessor
 from datasets.dataset_00.utils.ImagePreProcessor import ImagePreProcessor
 from datasets.dataset_00.utils.ImageSelector import ImageSelector
 from datasets.dataset_01.AllSlicesDataset import AllSlicesDataset
+from datasets.dataset_01.utils.image_selection import select_unique_image_idxs
 from metrics.BCE import BCE
 from metrics.ConfusionMetrics import ConfusionMetrics
 from metrics.Dice import Dice
@@ -49,7 +53,10 @@ class OptimizationManager:
         self.trainer_kwargs = trainer_kwargs
 
     def __call__(self, trial):
-        batch_size = trial.suggest_int("batch_size", 1, 18)
+        """
+        mask_idx_mapping is a global variable.
+        """
+        batch_size = trial.suggest_int("batch_size", 4, 13)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
 
         train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
@@ -65,19 +72,33 @@ class OptimizationManager:
         }
 
         loss_trainer = BCE(
-            is_loss=True, use_logits=True, reduction="mean", device=device
+            is_loss=True,
+            use_logits=True,
+            device=device,
         )
 
         # We do not care about the gradient stability when evaluating performance
+        # This is for recording BCE in mlflow instead of calculating the loss for model updates
         loss_callbacks = BCE(
-            is_loss=True, use_logits=True, reduction="mean", device=device
+            mask_idx_mapping=mask_idx_mapping,
+            is_loss=True,
+            use_logits=True,
+            device=device,
         )
 
         metrics = [
             Dice(
-                use_logits=False, prediction_threshold=0.5, is_loss=False, device=device
+                mask_idx_mapping=mask_idx_mapping,
+                use_logits=False,
+                prediction_threshold=0.5,
+                is_loss=False,
+                device=device,
             ),
-            ConfusionMetrics(use_logits=False, prediction_threshold=0.5, device=device),
+            ConfusionMetrics(
+                mask_idx_mapping=mask_idx_mapping,
+                prediction_threshold=0.5,
+                device=device,
+            ),
         ]
 
         with mlflow.start_run(nested=True, run_name=f"trial_{trial.number}"):
@@ -108,14 +129,24 @@ r"""°°°
 °°°"""
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
-root_data_path = pathlib.Path("big_drive/NF1_organoid_processed_patients").resolve(
+big_drive_path = pathlib.Path("big_drive")
+root_data_path = (big_drive_path / "NF1_organoid_processed_patients").resolve(
     strict=True
 )
-patient_folders = [p for p in root_data_path.iterdir() if p.is_dir()]
+
+cache_image_path = big_drive_path / "cached_NF1_organoid_processed_patients"
+crop_image_cache_path = cache_image_path / "crop_image_cache"
+whole_image_cache_path = cache_image_path / "whole_image_cache"
+
+# Removed NF0014 because it has the fewest number of FOVs and
+# it will be the holdout patient
+patient_folders = [
+    p for p in root_data_path.iterdir() if p.is_dir() and "NF0014" not in p.name
+]
 
 # |%%--%%| <uHCF3KHHYz|9NUAycuR83>
 
-device = "cuda"
+device = torch.device("cuda")
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
@@ -123,9 +154,10 @@ torch.manual_seed(0)
 mlflow.log_param("random_seed", 0)
 
 description = """
-Optimization of the first segmentation model with the following:
+Optimization of the first semantic segmentation model with the following:
 - UNet Generator
 - One-to-One slice segmentation mask prediction
+- Multiple segmentation masks: background, inner-cell, and cell-boundary
 - Does not perform any QC or filtering of image or filtering of slices
 - Trained on all slices
 - Each input slice is normalized
@@ -136,7 +168,11 @@ mlflow.set_tag("mlflow.note.content", description)
 # |%%--%%| <9NUAycuR83|RXyUovWJFX>
 
 image_paths = get_image_paths(patient_folders=patient_folders)
-image_specs = get_image_specs(image_paths=image_paths)
+
+# Crop margin specifies the cell boundary pixel thickness, because
+# there is no way to know what semantic class the pixels of the boarders
+# of images belong to.
+image_specs = get_image_specs(image_paths=image_paths, crop_margin=2)
 
 # |%%--%%| <RXyUovWJFX|muTDx2W917>
 
@@ -145,25 +181,30 @@ input_crop_shape = (3, 512, 512)
 img_selector = ImageSelector(
     input_crop_shape=input_crop_shape,
     target_crop_shape=(1, 512, 512),
+    image_specs=image_specs,
     slice_stride=1,
     crop_stride=512,
     device=device,
 )
 
-image_preprocessor = ImagePreProcessor(image_specs=image_specs, device=device)
+crop_image_preprocessor = ImagePreProcessor(image_specs=image_specs, device=device)
 image_postprocessor = ImagePostProcessor()
+
+whole_image_preprocessor = ImagePreProcessor(image_specs=image_specs, device=device)
 
 crop_image_dataset = CellSlicetoSliceDataset(
     image_paths=image_paths,
     image_specs=image_specs,
     image_selector=img_selector,
-    image_preprocessor=image_preprocessor,
+    image_preprocessor=crop_image_preprocessor,
+    image_cache_path=crop_image_cache_path,
 )
 
 whole_image_dataset = AllSlicesDataset(
     dataset=crop_image_dataset,
     image_specs=image_specs,
-    image_preprocessor=image_preprocessor,
+    image_preprocessor=whole_image_preprocessor,
+    image_cache_path=whole_image_cache_path,
 )
 
 # |%%--%%| <muTDx2W917|Ljn54YK9d8>
@@ -177,22 +218,39 @@ hash_splitter = HashSplitter(
 # Batch size is arbitrary here, it is just to sample images, which won't change with batch_size
 _, val_dataloader, _ = hash_splitter(batch_size=10)
 
-image_dataset_idxs = SampleImages(dataloader=val_dataloader, number_of_images=300)()
+# Select image crops to save after each epoch
+crop_dataset_idxs = SampleImages(datastruct=val_dataloader, image_fraction=1 / 512)()
+
+# This mapping depends on the instance to semantic segmentation code
+mask_idx_mapping = {0: "background", 1: "inner-cell", 2: "cell-boundary"}
+
+image_prediction_saver = SaveEpochSlices(
+    image_dataset=val_dataloader.dataset.dataset,
+    mask_idx_mapping=mask_idx_mapping,
+    image_postprocessor=image_postprocessor,
+    image_dataset_idxs=crop_dataset_idxs,
+)
+
+unique_crop_dataset_idxs = select_unique_image_idxs(
+    image_dataset_idxs=crop_dataset_idxs, image_dataset=crop_image_dataset
+)
+
+# Select images to save after each epoch from the unique crop dataset indices
+image_dataset_idxs = SampleImages(
+    datastruct=crop_image_dataset,
+    image_fraction=1 / 2,
+    dataset_idxs=unique_crop_dataset_idxs,
+)()
 
 whole_image_saver = SaveWholeSlices(
     image_dataset=whole_image_dataset,
     image_dataset_idxs=image_dataset_idxs,
     image_specs=image_specs,
-    stride=(1, 32, 32),
+    stride=(1, 256, 256),
     crop_shape=input_crop_shape,
+    mask_idx_mapping=mask_idx_mapping,
     pad_mode="reflect",
     image_postprocessor=image_postprocessor,
-)
-
-image_prediction_saver = SaveEpochSlices(
-    image_dataset=val_dataloader.dataset.dataset,
-    image_postprocessor=image_postprocessor,
-    image_dataset_idxs=image_dataset_idxs,
 )
 
 # |%%--%%| <Ljn54YK9d8|sv6R19116h>
@@ -205,7 +263,7 @@ callbacks_args = {
 
 # |%%--%%| <sv6R19116h|1ibSiDMEcz>
 
-unet = UNet(in_channels=3, out_channels=1)
+unet = UNet(in_channels=3, out_channels=3)
 
 # |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
 
@@ -216,11 +274,10 @@ optimization_manager = OptimizationManager(
     callbacks_args=callbacks_args,
     model=unet,
     epochs=30,
-    device=device,
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
-study.optimize(optimization_manager, n_trials=6)
+study.optimize(optimization_manager, n_trials=4)
 
 # |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
 
