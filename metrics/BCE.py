@@ -15,18 +15,16 @@ class BCE(AbstractMetric):
     def __init__(
         self,
         mask_idx_mapping: Optional[dict[int, str]] = None,
-        mask_weights: Optional[torch.Tensor] = None,
         is_loss: bool = False,
         use_logits: bool = True,
         device: Union[str, torch.device] = "cuda",
+        mask_weights_alpha: Optional[float] = None,
     ):
         super().__init__()
 
         self.mask_idx_mapping = mask_idx_mapping
 
-        self.mask_weights = (
-            torch.ones(3, device=device) if mask_weights is None else mask_weights
-        )
+        self.mask_weights = torch.ones(3, device=device)
 
         if self.mask_weights.ndim != 1 or self.mask_weights.shape[0] != 3:
             raise ValueError(
@@ -38,15 +36,15 @@ class BCE(AbstractMetric):
                 "The mask index mapping must be defined if BCE is used as a loss."
             )
 
-        self.mask_weights_sum = self.mask_weights.sum()
-
         self.is_loss = is_loss
         self.use_logits = use_logits
         self.device = (
             device if isinstance(device, torch.device) else torch.device(device)
         )
+        self.mask_weights_alpha = mask_weights_alpha
         self.bce_fn = None
         self.bce_pixel_func = None
+        self.next_mask_weights = None
 
         if self.is_loss:
             bce_fn = nn.BCEWithLogitsLoss if self.use_logits else nn.BCELoss
@@ -90,10 +88,24 @@ class BCE(AbstractMetric):
             generated_predictions = generated_predictions.unsqueeze(0)
             targets = targets.unsqueeze(0)
 
+        # Exponential Moving Average of semantic mask pixel frequencies
+        if self.mask_weights_alpha is not None:
+            next_mask_weights = 1.0 / (targets.sum(dim=(0, 2, 3, 4)) + 1e-9)
+            next_mask_weights = next_mask_weights / next_mask_weights.sum()
+            self.mask_weights = (
+                next_mask_weights
+                if self.next_mask_weights is None
+                else self.mask_weights
+            )
+            self.next_mask_weights = next_mask_weights
+            self.mask_weights = (self.mask_weights_alpha * self.next_mask_weights) + (
+                (1 - self.mask_weights_alpha) * self.mask_weights
+            )
+
         if data_split_logging is None:
             bce_losses = self.bce_fn(generated_predictions, targets)
             per_mask_losses = bce_losses.mean(dim=(0, 2, 3, 4))
-            return (self.mask_weights * per_mask_losses).sum() / self.mask_weights_sum
+            return (self.mask_weights * per_mask_losses).sum()
 
         bce_func = self.bce_fn if data_split_logging is None else self.bce_pixel_func
 
