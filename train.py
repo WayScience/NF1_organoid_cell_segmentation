@@ -278,7 +278,7 @@ optimization_manager = OptimizationManager(
     dataset=crop_image_dataset,
     callbacks_args=callbacks_args,
     model=unet,
-    epochs=30,
+    epochs=8,
 )
 
 study = optuna.create_study(study_name="model_training", direction="minimize")
