@@ -58,8 +58,10 @@ class OptimizationManager:
         """
         batch_size = trial.suggest_int("batch_size", 4, 13)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
-        mask_weights_alpha = trial.suggest_float(
-            "mask_weights_alpha", 0.001, 0.1, log=True
+        mask_weights_alpha = torch.tensor(
+            trial.suggest_float("mask_weights_alpha", 0.001, 0.1, log=True),
+            dtype=torch.float32,
+            device=device,
         )
 
         train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
