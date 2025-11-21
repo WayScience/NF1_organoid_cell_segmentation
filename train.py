@@ -78,6 +78,7 @@ class OptimizationManager:
             is_loss=True,
             use_logits=True,
             device=device,
+            dataloader=train_dataloader,
         )
 
         # We do not care about the gradient stability when evaluating performance

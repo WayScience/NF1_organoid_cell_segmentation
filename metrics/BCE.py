@@ -19,12 +19,21 @@ class BCE(AbstractMetric):
         use_logits: bool = True,
         device: Union[str, torch.device] = "cuda",
         mask_weights_alpha: Optional[float] = None,
+        dataloader: Optional[torch.utils.data.DataLoader] = None,
     ):
         super().__init__()
 
         self.mask_idx_mapping = mask_idx_mapping
 
-        self.mask_weights = torch.ones(3, device=device)
+        if dataloader is not None:
+            self.mask_weights = self.compute_mask_weights(
+                targets=self.sample_dataloader_targets(
+                    dataloader=dataloader, num_samples=40
+                )
+            )
+
+        else:
+            self.mask_weights = torch.ones(3, device=device)
 
         if self.mask_weights.ndim != 1 or self.mask_weights.shape[0] != 3:
             raise ValueError(
@@ -59,6 +68,25 @@ class BCE(AbstractMetric):
 
         self.reset()
 
+    def compute_mask_weights(self, targets: torch.Tensor):
+        class_pixel_sums = targets.sum(dim=(0, 2, 3, 4))
+        next_mask_weights = torch.where(
+            class_pixel_sums == 0,
+            torch.tensor(
+                1e-12, device=class_pixel_sums.device, dtype=class_pixel_sums.dtype
+            ),
+            1.0 / class_pixel_sums,
+        )
+        return next_mask_weights / next_mask_weights.sum()
+
+    def sample_dataloader_targets(
+        self, dataloader: torch.utils.data.DataLoader, num_samples: int
+    ):
+        torch.manual_seed(0)
+        dataset = dataloader.dataset
+        idx = torch.randperm(len(dataset))[:num_samples]
+        return torch.stack([dataset[i]["target"] for i in idx], dim=0)
+
     def reset(self):
         self.total_loss = torch.zeros(3, device=self.device)
         self.total_elements = 0
@@ -90,14 +118,7 @@ class BCE(AbstractMetric):
 
         # Exponential Moving Average of semantic mask pixel frequencies
         if self.mask_weights_alpha is not None:
-            next_mask_weights = 1.0 / (targets.sum(dim=(0, 2, 3, 4)) + 1e-9)
-            next_mask_weights = next_mask_weights / next_mask_weights.sum()
-            self.mask_weights = (
-                next_mask_weights
-                if self.next_mask_weights is None
-                else self.mask_weights
-            )
-            self.next_mask_weights = next_mask_weights
+            self.next_mask_weights = self.compute_mask_weights(targets=targets)
             self.mask_weights = (self.mask_weights_alpha * self.next_mask_weights) + (
                 (1 - self.mask_weights_alpha) * self.mask_weights
             )
