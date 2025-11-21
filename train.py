@@ -116,7 +116,7 @@ class OptimizationManager:
             del opt_params["params"]
             mlflow.log_params({f"optimizer_{k}": v for k, v in opt_params.items()})
             mlflow.log_param("batch_size", batch_size)
-            mlflow.log_param("mask_weights_alpha", mask_weights_alpha)
+            mlflow.log_param("mask_weights_alpha", mask_weights_alpha.item())
             mlflow.set_tag("optimizer_class", optimizer.__class__.__name__.lower())
 
             self.trainer_kwargs["callbacks"] = Callbacks(
