@@ -12,70 +12,33 @@ Each model's code is tracked within git's commit comment history. A trained mode
 Each model is trained by executing `train.py` from the MLproject file so the results can be logged to MLflow. The paths inside `train.py` are needed to create the dataset for training the model.
 
 ## Model Descriptions
-All models below were trained with Experiment ID: 310992065458859481
+All models below were trained with Experiment ID: 185714796021641116
 
 These are the models developed in reverse chronological order:
 
 ---
 
-**Commit:** `25f5b66e2b56dbf9c489645f6eb56610120c4ad6` <br>
-**Codename:** luxuriant-shad-666
+**Commit:** `07e0368d2d435e4ad04902e242cfee934adc50e0` <br>
+**Codename:** fearless-eel-256
+
+> **Note:** The binary cross entropy (BCE) was not computed after the first trial (trial 0) <br>
 
 - **Architecture:** UNet Generator
 - **Task:** One-to-One slice segmentation mask prediction
 - **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Data:** Trained and evaluated on all slices of patient NF0016
+- **Data:**
+  - Trained and evaluated on all patient data except patient NF0014 (Holdout Patient)
+  - The model was developed using multiple segmentation masks:
+    - Background
+    - Inner-cell
+    - Cell-boundary
 - **Preprocessing:**
   - Each input slice is normalized
   - Each input is padded to preserve dimensionality (height and width divisible by 16)
+- **Loss:**
+  - The BCE loss is modified to account for segmentation mask pixel frequencies
+    - Computed using an exponential moving average during training by initially randomly sampling image patches
+  - The logged BCE used a random alpha exponential moving average hyperparameter
 
 ---
 
-**Commit:** `b9c5ab4af0ef5db82f3575988d3e9eaeb891bd98` <br>
-**Codename:** casual-stork-830
-
-> **Important!!!** The computer crashed during this run due to a device-side CUDA error <br>
-> **Note:** The first two sub-runs completed without error
-
-- **Architecture:** UNet Generator
-- **Task:** One-to-One slice segmentation mask prediction
-- **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Data:** Trained and evaluated on all slices of patient NF0016
-- **Preprocessing:**
-  - Each input slice is normalized
-  - Each input is padded to preserve dimensionality (height and width divisible by 16)
-
----
-
-**Commit:** `d993cd928bb181fd723d9be4bd8f28ff87ec14a0` <br>
-**Codename:** bright-calf-792
-
-> **Important!!!** The pyproject.toml file and the uv.lock file were not included in this commit <br>
-> **Important!!!** The computer crashed during this run
-
-- **Architecture:** UNet Generator
-- **Task:** One-to-One slice segmentation mask prediction
-- **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Data:** Trained and evaluated on all slices of patient NF0016
-- **Preprocessing:**
-  - Each input slice is normalized
-  - Each input is padded to preserve dimensionality (height and width divisible by 16)
-
----
-
-**Commit:** `1ccccd1595607ddbebac95f93aa6ecad6184c414` <br>
-**Codename:** stylish-flea-695
-
-> **Note:** Manually ended early because images weren't being saved <br>
-> **Important!!!** Did not commit the collator, so this model will also need the collator committed later <br>
-> **Important!!!** The pyproject.toml file and the uv.lock file were not included in this commit
-
-- **Architecture:** UNet Generator
-- **Task:** One-to-One slice segmentation mask prediction
-- **QC / Filtering:** Does not perform any QC or filtering of images or slices
-- **Data:** Trained and evaluated on all slices of patient NF0016
-- **Preprocessing:**
-  - Each input slice is normalized
-  - Each input is padded to preserve dimensionality (height and width divisible by 16)
-
----
