@@ -14,7 +14,6 @@ class Dice(AbstractMetric):
     def __init__(
         self,
         mask_idx_mapping: dict[int, str],
-        mask_weights: Optional[torch.Tensor] = None,
         smooth: float = 1e-6,
         use_logits: bool = True,
         prediction_threshold=0.5,
@@ -28,9 +27,7 @@ class Dice(AbstractMetric):
         super().__init__()
         self.mask_idx_mapping = mask_idx_mapping
 
-        self.mask_weights = (
-            torch.ones(3, device=device) if mask_weights is None else mask_weights
-        )
+        self.mask_weights = torch.ones(3, device=device)
 
         if self.mask_weights.ndim != 1 or self.mask_weights.shape[0] != 3:
             raise ValueError(

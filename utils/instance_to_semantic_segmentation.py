@@ -23,7 +23,7 @@ def instance_to_semantic_segmentation(
     # Background
     semantic_mask[0] = (instance_mask == 0).astype(np.uint8)
 
-    for z in range(1, Z - 1):  # skip first and last slices
+    for z in range(Z):
         slice_mask = instance_mask[z]
         boundary_slice = np.zeros((H, W), dtype=bool)
         interior_slice = np.zeros((H, W), dtype=bool)

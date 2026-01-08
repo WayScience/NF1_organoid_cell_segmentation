@@ -23,6 +23,7 @@ class AllSlicesDataset(Dataset):
         image_cache_path: Optional[pathlib.Path] = None,
         input_image_name: Optional[str] = None,
         target_image_name: Optional[str] = None,
+        input_crop_shape: Optional[tuple[int]] = None,
     ):
 
         self.dataset = dataset
@@ -46,6 +47,10 @@ class AllSlicesDataset(Dataset):
             else target_image_name
         )
 
+        self.input_neighbors_per_side = (
+            0 if input_crop_shape is None else input_crop_shape[0] // 2
+        )
+
         self.useless_metadata = [
             "Metadata_Input_Slices",
             "Metadata_Target_Slices",
@@ -62,6 +67,12 @@ class AllSlicesDataset(Dataset):
         input_image = tifffile.imread(sample["input_path"]).astype(np.float32)
 
         target_image = tifffile.imread(sample["target_path"]).astype(np.float32)
+
+        target_image = target_image[
+            self.input_neighbors_per_side : target_image.shape[0]
+            - self.input_neighbors_per_side,
+            ::,
+        ]
 
         self.processing_data = self.image_preprocessor(
             input_img=input_image, target_img=target_image

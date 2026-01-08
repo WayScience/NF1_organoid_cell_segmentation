@@ -58,9 +58,6 @@ class UNetTrainer:
         self.model = self.model.to(self.device)
 
         for epoch in range(self.epochs):
-            if not train_data["continue_training"]:
-                break
-
             train_data["epoch"] = epoch
             train_data["callback_hook"] = "on_epoch_start"
             self.callbacks(**train_data)
@@ -101,6 +98,9 @@ class UNetTrainer:
                 train_data["callback_hook"] = "on_batch_end"
 
                 self.callbacks(**train_data)
+
+                if not train_data["continue_training"]:
+                    break
 
             train_data["callback_hook"] = "on_epoch_end"
             with torch.amp.autocast(enabled=self.use_amp, device_type=self.device.type):
