@@ -16,14 +16,23 @@ def get_image_paths(
 
     for patient in patient_folders:
 
-        brightfield_paths = patient.rglob("profiling_input_images/**/*TRANS.tif")
+        cell_mask_paths = patient.rglob("segmentation_masks/**/cell_mask.tiff")
+        bright_path_prefix = patient / "zstack_images"
 
-        for bright_path in brightfield_paths:
-            mask_path = bright_path.with_name("cell_masks.tiff")
+        for mask_path in cell_mask_paths:
+            well_site_name = mask_path.parents[0].name
 
-            if mask_path.exists():
+            bright_path = (
+                bright_path_prefix / f"{well_site_name}/{well_site_name}_TRANS.tif"
+            )
+
+            if bright_path.exists():
                 image_mask_pairs.append(
                     {"input_path": bright_path, "target_path": mask_path}
+                )
+            else:
+                raise FileNotFoundError(
+                    f"The brightfield path doesn't exist for patient {patient.name} and well-site {well_site_name}. Consider modifying image_metadata.py in the first dataset utils to correct the pathing"
                 )
 
     return image_mask_pairs

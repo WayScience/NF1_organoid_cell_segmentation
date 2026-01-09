@@ -58,11 +58,6 @@ class OptimizationManager:
         """
         batch_size = trial.suggest_int("batch_size", 4, 13)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
-        mask_weights_alpha = torch.tensor(
-            trial.suggest_float("mask_weights_alpha", 0.001, 0.1, log=True),
-            dtype=torch.float32,
-            device=device,
-        )
 
         train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
             batch_size=batch_size
@@ -90,7 +85,6 @@ class OptimizationManager:
             is_loss=True,
             use_logits=True,
             device=device,
-            mask_weights_alpha=mask_weights_alpha,
         )
 
         metrics = [
@@ -116,7 +110,6 @@ class OptimizationManager:
             del opt_params["params"]
             mlflow.log_params({f"optimizer_{k}": v for k, v in opt_params.items()})
             mlflow.log_param("batch_size", batch_size)
-            mlflow.log_param("mask_weights_alpha", mask_weights_alpha.item())
             mlflow.set_tag("optimizer_class", optimizer.__class__.__name__.lower())
 
             self.trainer_kwargs["callbacks"] = Callbacks(
@@ -138,7 +131,7 @@ r"""°°°
 # |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
 
 big_drive_path = pathlib.Path("big_drive")
-root_data_path = (big_drive_path / "NF1_organoid_processed_patients").resolve(
+root_data_path = (big_drive_path / "NF1_organoid_cell_segmentation").resolve(
     strict=True
 )
 
