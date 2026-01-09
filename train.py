@@ -30,7 +30,7 @@ from models.UNet import UNet
 from splitters.HashSplitter import HashSplitter
 from trainers.UNetTrainer import UNetTrainer
 
-# |%%--%%| <EZ6SOiX7Wc|Twmb6mPjf5>
+# %%
 
 
 class OptimizationManager:
@@ -124,11 +124,9 @@ class OptimizationManager:
             return trainer_obj.best_loss_value
 
 
-# |%%--%%| <Twmb6mPjf5|ExjIoeHzuw>
-r"""°°°
-# Inputs
-°°°"""
-# |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
+# %% [markdown]
+# # Inputs
+# %%
 
 big_drive_path = pathlib.Path("big_drive")
 root_data_path = (big_drive_path / "NF1_organoid_cell_segmentation").resolve(
@@ -139,13 +137,18 @@ cache_image_path = big_drive_path / "cached_NF1_organoid_processed_patients"
 crop_image_cache_path = cache_image_path / "crop_image_cache"
 whole_image_cache_path = cache_image_path / "whole_image_cache"
 
-# Removed NF0014 because it has the fewest number of FOVs and
-# it will be the holdout patient
-patient_folders = [
-    p for p in root_data_path.iterdir() if p.is_dir() and "NF0014" not in p.name
-]
+# The following patient tumor datasets were moved to the holdout set:
+# NF0016 because it has the fewest number of FOVs and
+# NF0014_T1, because it had the fewest number of FOVs for a single tumor.
+# The yokogawa-imaged NF0037 patient, because the acquisition was different.
+excluded_data = ["NF0016_T1", "NF0037_T1_CQ1", "NF0014_T1"]
 
-# |%%--%%| <uHCF3KHHYz|9NUAycuR83>
+patient_folders = [
+    p
+    for p in root_data_path.iterdir()
+    if p.is_dir() and not any(s in p.name for s in excluded_data)
+]
+# %%
 
 device = torch.device("cuda")
 random.seed(0)
@@ -166,7 +169,7 @@ Optimization of the first semantic segmentation model with the following:
 """
 mlflow.set_tag("mlflow.note.content", description)
 
-# |%%--%%| <9NUAycuR83|RXyUovWJFX>
+# %%
 
 image_paths = get_image_paths(patient_folders=patient_folders)
 
@@ -175,7 +178,7 @@ image_paths = get_image_paths(patient_folders=patient_folders)
 # of images belong to.
 image_specs = get_image_specs(image_paths=image_paths, crop_margin=2)
 
-# |%%--%%| <RXyUovWJFX|muTDx2W917>
+# %%
 
 input_crop_shape = (3, 512, 512)
 
@@ -208,7 +211,7 @@ whole_image_dataset = AllSlicesDataset(
     image_cache_path=whole_image_cache_path,
 )
 
-# |%%--%%| <muTDx2W917|Ljn54YK9d8>
+# %%
 
 hash_splitter = HashSplitter(
     dataset=crop_image_dataset,
@@ -254,7 +257,7 @@ whole_image_saver = SaveWholeSlices(
     image_postprocessor=image_postprocessor,
 )
 
-# |%%--%%| <Ljn54YK9d8|sv6R19116h>
+# %%
 
 callbacks_args = {
     "early_stopping_counter_threshold": 5,
@@ -262,11 +265,11 @@ callbacks_args = {
     "image_postprocessor": image_postprocessor,
 }
 
-# |%%--%%| <sv6R19116h|1ibSiDMEcz>
+# %%
 
 unet = UNet(in_channels=3, out_channels=3)
 
-# |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
+# %%
 
 optimization_manager = OptimizationManager(
     trainer=UNetTrainer,
@@ -280,7 +283,7 @@ optimization_manager = OptimizationManager(
 study = optuna.create_study(study_name="model_training", direction="minimize")
 study.optimize(optimization_manager, n_trials=4)
 
-# |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
+# %%
 
 joblib.dump(study, "optuna_study.joblib")
 mlflow.log_artifact("optuna_study.joblib")
