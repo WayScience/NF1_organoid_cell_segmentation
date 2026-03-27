@@ -138,9 +138,9 @@ crop_image_cache_path = cache_image_path / "crop_image_cache"
 whole_image_cache_path = cache_image_path / "whole_image_cache"
 
 # The following patient tumor datasets were moved to the holdout set:
-# NF0016 because it has the fewest number of FOVs and
+# NF0016_T1 because it has the fewest number of FOVs and
 # NF0014_T1, because it had the fewest number of FOVs for a single tumor.
-# The yokogawa-imaged NF0037 patient, because the acquisition was different.
+# The yokogawa-imaged NF0037_T1 patient, because the acquisition was different.
 excluded_data = ["NF0016_T1", "NF0037_T1_CQ1", "NF0014_T1"]
 
 patient_folders = [
