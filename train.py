@@ -1,8 +1,8 @@
-import pathlib
 import random
 import sys
 
 sys.path.append("utils")
+import pathlib
 from typing import Any
 
 import joblib
@@ -30,7 +30,7 @@ from models.UNet import UNet
 from splitters.HashSplitter import HashSplitter
 from trainers.UNetTrainer import UNetTrainer
 
-# |%%--%%| <EZ6SOiX7Wc|Twmb6mPjf5>
+# %%
 
 
 class OptimizationManager:
@@ -58,11 +58,6 @@ class OptimizationManager:
         """
         batch_size = trial.suggest_int("batch_size", 4, 13)
         lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
-        mask_weights_alpha = torch.tensor(
-            trial.suggest_float("mask_weights_alpha", 0.001, 0.1, log=True),
-            dtype=torch.float32,
-            device=device,
-        )
 
         train_dataloader, val_dataloader, test_dataloader = self.hash_splitter(
             batch_size=batch_size
@@ -90,7 +85,6 @@ class OptimizationManager:
             is_loss=True,
             use_logits=True,
             device=device,
-            mask_weights_alpha=mask_weights_alpha,
         )
 
         metrics = [
@@ -116,7 +110,6 @@ class OptimizationManager:
             del opt_params["params"]
             mlflow.log_params({f"optimizer_{k}": v for k, v in opt_params.items()})
             mlflow.log_param("batch_size", batch_size)
-            mlflow.log_param("mask_weights_alpha", mask_weights_alpha.item())
             mlflow.set_tag("optimizer_class", optimizer.__class__.__name__.lower())
 
             self.trainer_kwargs["callbacks"] = Callbacks(
@@ -131,14 +124,12 @@ class OptimizationManager:
             return trainer_obj.best_loss_value
 
 
-# |%%--%%| <Twmb6mPjf5|ExjIoeHzuw>
-r"""°°°
-# Inputs
-°°°"""
-# |%%--%%| <ExjIoeHzuw|uHCF3KHHYz>
+# %% [markdown]
+# # Inputs
+# %%
 
 big_drive_path = pathlib.Path("big_drive")
-root_data_path = (big_drive_path / "NF1_organoid_processed_patients").resolve(
+root_data_path = (big_drive_path / "NF1_organoid_cell_segmentation").resolve(
     strict=True
 )
 
@@ -146,13 +137,18 @@ cache_image_path = big_drive_path / "cached_NF1_organoid_processed_patients"
 crop_image_cache_path = cache_image_path / "crop_image_cache"
 whole_image_cache_path = cache_image_path / "whole_image_cache"
 
-# Removed NF0014 because it has the fewest number of FOVs and
-# it will be the holdout patient
-patient_folders = [
-    p for p in root_data_path.iterdir() if p.is_dir() and "NF0014" not in p.name
-]
+# The following patient tumor datasets were moved to the holdout set:
+# NF0016_T1 because it has the fewest number of FOVs and
+# NF0014_T1, because it had the fewest number of FOVs for a single tumor.
+# The yokogawa-imaged NF0037_T1 patient, because the acquisition was different.
+excluded_data = ["NF0016_T1", "NF0037_T1_CQ1", "NF0014_T1"]
 
-# |%%--%%| <uHCF3KHHYz|9NUAycuR83>
+patient_folders = [
+    p
+    for p in root_data_path.iterdir()
+    if p.is_dir() and not any(s in p.name for s in excluded_data)
+]
+# %%
 
 device = torch.device("cuda")
 random.seed(0)
@@ -173,7 +169,7 @@ Optimization of the first semantic segmentation model with the following:
 """
 mlflow.set_tag("mlflow.note.content", description)
 
-# |%%--%%| <9NUAycuR83|RXyUovWJFX>
+# %%
 
 image_paths = get_image_paths(patient_folders=patient_folders)
 
@@ -182,7 +178,7 @@ image_paths = get_image_paths(patient_folders=patient_folders)
 # of images belong to.
 image_specs = get_image_specs(image_paths=image_paths, crop_margin=2)
 
-# |%%--%%| <RXyUovWJFX|muTDx2W917>
+# %%
 
 input_crop_shape = (3, 512, 512)
 
@@ -215,7 +211,7 @@ whole_image_dataset = AllSlicesDataset(
     image_cache_path=whole_image_cache_path,
 )
 
-# |%%--%%| <muTDx2W917|Ljn54YK9d8>
+# %%
 
 hash_splitter = HashSplitter(
     dataset=crop_image_dataset,
@@ -261,7 +257,7 @@ whole_image_saver = SaveWholeSlices(
     image_postprocessor=image_postprocessor,
 )
 
-# |%%--%%| <Ljn54YK9d8|sv6R19116h>
+# %%
 
 callbacks_args = {
     "early_stopping_counter_threshold": 5,
@@ -269,11 +265,11 @@ callbacks_args = {
     "image_postprocessor": image_postprocessor,
 }
 
-# |%%--%%| <sv6R19116h|1ibSiDMEcz>
+# %%
 
 unet = UNet(in_channels=3, out_channels=3)
 
-# |%%--%%| <1ibSiDMEcz|yAnz5nSUyL>
+# %%
 
 optimization_manager = OptimizationManager(
     trainer=UNetTrainer,
@@ -287,7 +283,7 @@ optimization_manager = OptimizationManager(
 study = optuna.create_study(study_name="model_training", direction="minimize")
 study.optimize(optimization_manager, n_trials=4)
 
-# |%%--%%| <yAnz5nSUyL|bVaGWMfHn6>
+# %%
 
 joblib.dump(study, "optuna_study.joblib")
 mlflow.log_artifact("optuna_study.joblib")

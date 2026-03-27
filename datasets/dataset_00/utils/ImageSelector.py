@@ -129,9 +129,9 @@ class ImageSelector:
         overlapping_data = []
 
         for locations in data_locations:
-            for location in locations["target"]:
-                target_info = locations["target"][location]
-                input_info = locations["input"][location]
+            for input_location, target_location in zip(locations["input"], locations["target"]):
+                input_info = locations["input"][input_location]
+                target_info = locations["target"][target_location]
 
                 for target_slice_data in target_info:
                     for input_slice_data in input_info:
@@ -226,6 +226,7 @@ class ImageSelector:
                 data_crop = base_data.copy()
                 data_crop["crop_coords"] = crop
                 data_crops.append(data_crop)
+
 
         return data_crops
 

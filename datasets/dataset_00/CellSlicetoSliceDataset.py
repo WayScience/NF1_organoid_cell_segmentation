@@ -103,19 +103,18 @@ class CellSlicetoSliceDataset(Dataset):
     def __getitem__(self, _idx: int):
         """Returns input and target data pairs."""
 
-        # For easier retrieval of image data once sampled
         self.dataset_id = _idx
 
         self.input_path = self.data_crops[_idx]["input_path"]
         self.target_path = self.data_crops[_idx]["target_path"]
-        self.well, self.fov = str(self.input_path.parent).split("/")[-1].split("-")
+        self.well, self.fov = self.input_path.parent.name.split("-")
         self.input_slices = sorted(self.data_crops[_idx]["input_slices"], reverse=False)
         self.target_slices = sorted(
             self.data_crops[_idx]["target_slices"], reverse=False
         )
         self.crop_coords = self.data_crops[_idx]["crop_coords"]
 
-        self.patient = str(self.input_path.parents[2]).split("/")[-1]
+        self.patient = self.input_path.parents[2].name
         input_slice_str = "".join(map(str, self.input_slices))
         target_slice_str = "".join(map(str, self.target_slices))
 
